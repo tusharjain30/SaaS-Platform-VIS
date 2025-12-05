@@ -1,0 +1,242 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Admin {
+  id        Int      @id @default(autoincrement())
+  userName  String?  @unique
+  email     String   @unique
+  phone     String   @unique
+  name      String
+  image     String?
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Status Flags
+  isActive   Boolean @default(true) // controls login access
+  isDeleted  Boolean @default(false) // soft delete
+  isVerified Boolean @default(false) // email/otp verified
+
+  // Role Relation
+  role   Role? @relation("AdminRole", fields: [roleId], references: [id])
+  roleId Int?
+
+  tokenVersion String @default(uuid())
+
+  @@index([userName])
+  @@index([isActive, isDeleted])
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String?  @unique
+  phone     String   @unique
+  password  String
+  image     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // OTP for email/phone verification
+  otp        String?
+  otpExpires DateTime?
+
+  // Status Flags
+  isActive   Boolean @default(true)
+  isDeleted  Boolean @default(false)
+  isVerified Boolean @default(false)
+
+  // API Tokens
+  apiToken     String @default(uuid())
+  tokenVersion String @default(uuid())
+
+  // Relations
+  role             Role?             @relation("UserRole", fields: [roleId], references: [id])
+  roleId           Int?
+  wabaVerification WabaVerification?
+  templates        Template[]
+  bots             Bot[]
+  subscriptions    Subscription[]
+  messageLogs      MessageLog[]
+
+  @@index([isActive, isDeleted])
+}
+
+model Role {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+
+  permissions RolePermission[]
+  Admin       Admin[]          @relation("AdminRole")
+  users       User[]           @relation("UserRole")
+
+  roleType  RoleType @default(INTERNAL_ADMIN)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  isDeleted Boolean  @default(false)
+  isActive  Boolean  @default(true)
+
+  @@index([isActive, isDeleted])
+}
+
+model Permission {
+  id        Int              @id @default(autoincrement())
+  name      String           @unique
+  roles     RolePermission[]
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  isDeleted Boolean          @default(false)
+  isActive  Boolean          @default(true)
+
+  @@index([isActive, isDeleted])
+}
+
+model RolePermission {
+  roleId       Int
+  permissionId Int
+
+  role       Role       @relation(fields: [roleId], references: [id])
+  permission Permission @relation(fields: [permissionId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  isDeleted Boolean  @default(false)
+
+  @@id([roleId, permissionId])
+}
+
+model WabaVerification {
+  id     Int  @id @default(autoincrement())
+  user   User @relation(fields: [userId], references: [id])
+  userId Int  @unique
+
+  clientPhone String // phone number user wants to use
+  otp         String?
+  status      VerificationStatus @default(PENDING)
+
+  wabaPhoneId String? // your WABA phone_number_id used for verification
+  wabaWabaId  String? // your WABA ID
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model MessageLog {
+  id     Int  @id @default(autoincrement())
+  user   User @relation(fields: [userId], references: [id])
+  userId Int
+
+  to           String // client sending to
+  type         MessageType
+  templateName String?
+  payload      Json
+  status       MessageStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+}
+
+model Template {
+  id     Int  @id @default(autoincrement())
+  user   User @relation(fields: [userId], references: [id])
+  userId Int
+
+  name      String
+  category  TemplateCategory
+  language  String           @default("en_US")
+  body      String
+  variables Json?
+  status    TemplateStatus   @default(PENDING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Bot {
+  id     Int  @id @default(autoincrement())
+  user   User @relation(fields: [userId], references: [id])
+  userId Int
+
+  name     String
+  flow     Json // bot steps JSON format
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Plan {
+  id            Int            @id @default(autoincrement())
+  name          String         @unique
+  price         Float
+  messageLimit  Int
+  description   String?
+  isActive      Boolean        @default(true)
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id     Int  @id @default(autoincrement())
+  user   User @relation(fields: [userId], references: [id])
+  userId Int
+
+  planId Int
+  plan   Plan @relation(fields: [planId], references: [id])
+
+  startDate DateTime @default(now())
+  endDate   DateTime
+  isActive  Boolean  @default(true)
+}
+
+enum TemplateCategory {
+  MARKETING
+  UTILITY
+  AUTHENTICATION
+}
+
+enum TemplateStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum MessageType {
+  TEXT
+  TEMPLATE
+  IMAGE
+  VIDEO
+  DOCUMENT
+}
+
+enum MessageStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  FAILED
+  EXPIRED
+}
+
+enum RoleType {
+  SYSTEM_ADMIN // Super Admin
+  INTERNAL_ADMIN // HR, Manager, Sub Admin, Support, etc.
+  CUSTOMER_USER // Customer using your platform
+}

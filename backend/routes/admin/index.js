@@ -1,9 +1,11 @@
 const express = require("express");
 const router = express.Router();
 const authRoutes = require("./auth");
-const internalAdminRoutes = require("./internal-admin");
+const userRoutes = require("./user");
+const permissionRoutes = require("./permission");
 
 router.use("/auth", authRoutes);
-router.use("/internal-admin", internalAdminRoutes);
+router.use("/user", userRoutes);
+router.use("/permission", permissionRoutes);
 
 module.exports = router;

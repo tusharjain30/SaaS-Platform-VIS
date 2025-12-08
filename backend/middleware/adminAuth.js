@@ -45,10 +45,10 @@ const adminAuth = async (req, res, next) => {
         }
 
         if (admin.isDeleted || !admin.isActive) {
-            return res.status(RESPONSE_CODES.FORBIDDEN).json({
+            return res.status(RESPONSE_CODES.UNAUTHORIZED).json({
                 status: 0,
                 message: "Account inactive/deleted",
-                statusCode: RESPONSE_CODES.FORBIDDEN,
+                statusCode: RESPONSE_CODES.UNAUTHORIZED,
                 data: {}
             });
         }

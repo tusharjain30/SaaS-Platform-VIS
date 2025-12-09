@@ -40,41 +40,6 @@ model Admin {
   @@index([isActive, isDeleted])
 }
 
-model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String?  @unique
-  phone     String   @unique
-  password  String
-  image     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // OTP for email/phone verification
-  otp        String?
-  otpExpires DateTime?
-
-  // Status Flags
-  isActive   Boolean @default(true)
-  isDeleted  Boolean @default(false)
-  isVerified Boolean @default(false)
-
-  // API Tokens
-  apiToken     String @default(uuid())
-  tokenVersion String @default(uuid())
-
-  // Relations
-  role             Role?             @relation("UserRole", fields: [roleId], references: [id])
-  roleId           Int?
-  wabaVerification WabaVerification?
-  templates        Template[]
-  bots             Bot[]
-  subscriptions    Subscription[]
-  messageLogs      MessageLog[]
-
-  @@index([isActive, isDeleted])
-}
-
 model Role {
   id   Int    @id @default(autoincrement())
   name String @unique
@@ -116,6 +81,41 @@ model RolePermission {
   isDeleted Boolean  @default(false)
 
   @@id([roleId, permissionId])
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String?  @unique
+  phone     String   @unique
+  password  String
+  image     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // OTP for email/phone verification
+  otp        String?
+  otpExpires DateTime?
+
+  // Status Flags
+  isActive   Boolean @default(true)
+  isDeleted  Boolean @default(false)
+  isVerified Boolean @default(false)
+
+  // API Tokens
+  apiToken     String @default(uuid())
+  tokenVersion String @default(uuid())
+
+  // Relations
+  role             Role?             @relation("UserRole", fields: [roleId], references: [id])
+  roleId           Int?
+  wabaVerification WabaVerification?
+  templates        Template[]
+  bots             Bot[]
+  subscriptions    Subscription[]
+  messageLogs      MessageLog[]
+
+  @@index([isActive, isDeleted])
 }
 
 model WabaVerification {
@@ -178,26 +178,50 @@ model Bot {
 }
 
 model Plan {
-  id            Int            @id @default(autoincrement())
-  name          String         @unique
-  price         Float
-  messageLimit  Int
-  description   String?
-  isActive      Boolean        @default(true)
+  id Int @id @default(autoincrement())
+
+  name        String  @unique
+  description String?
+
+  // Pricing
+  price    Float // monthly price
+  currency String @default("INR")
+
+  // Template limits
+  maxTemplates Int
+
+  // Future services (keep extensible)
+  maxBots             Int? // optional
+  monthlyMessageLimit Int? // optional
+
+  // Plan status
+  isActive  Boolean @default(true)
+  isDeleted Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
   subscriptions Subscription[]
+
+  @@index([isActive, isDeleted])
 }
 
 model Subscription {
-  id     Int  @id @default(autoincrement())
-  user   User @relation(fields: [userId], references: [id])
+  id Int @id @default(autoincrement())
+
   userId Int
-
   planId Int
-  plan   Plan @relation(fields: [planId], references: [id])
 
-  startDate DateTime @default(now())
-  endDate   DateTime
-  isActive  Boolean  @default(true)
+  startDate DateTime  @default(now())
+  endDate   DateTime?
+
+  isActive Boolean @default(true)
+
+  user User @relation(fields: [userId], references: [id])
+  plan Plan @relation(fields: [planId], references: [id])
+
+  @@index([userId, isActive])
 }
 
 enum TemplateCategory {

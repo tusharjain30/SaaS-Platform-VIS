@@ -90,7 +90,7 @@ router.post("/", async (req, res) => {
         });
 
     } catch (error) {
-        console.log("Super Admin Login Error:", error);
+        console.log("Admin Login Error:", error);
         res.status(RESPONSE_CODES.ERROR).json({
             status: 0,
             message: "Internal Server Error",

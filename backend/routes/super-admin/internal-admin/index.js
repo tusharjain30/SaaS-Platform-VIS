@@ -1,10 +1,10 @@
 const express = require("express");
 const router = express.Router();
-const { adminCreateSchema } = require("../../../schema/admin/user/create.schema");
-const { adminListQuerySchema } = require("../../../schema/admin/user/read.schema");
-const { updateAdminSchema } = require("../../../schema/admin/user/update.schema");
-const { softDeleteAdminSchema } = require("../../../schema/admin/user/delete.schema");
-const { detailAdminSchema } = require("../../../schema/admin/user/detail.schema");
+const { adminCreateSchema } = require("../../../schema/super-admin/internal-admin/create.schema");
+const { adminListQuerySchema } = require("../../../schema/super-admin/internal-admin/read.schema");
+const { updateAdminSchema } = require("../../../schema/super-admin/internal-admin/update.schema");
+const { softDeleteAdminSchema } = require("../../../schema/super-admin/internal-admin/delete.schema");
+const { detailAdminSchema } = require("../../../schema/super-admin/internal-admin/detail.schema");
 
 
 const validator = require("../../../middleware/validator");

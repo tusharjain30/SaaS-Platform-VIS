@@ -1,11 +1,13 @@
 const express = require("express");
 const router = express.Router();
 const authRoutes = require("./auth");
-const userRoutes = require("./user");
+const internalAdminRoutes = require("./internal-admin");
 const permissionRoutes = require("./permission");
+const profileRoutes = require("./profile");
 
 router.use("/auth", authRoutes);
-router.use("/user", userRoutes);
+router.use("/internal-admin", internalAdminRoutes);
 router.use("/permission", permissionRoutes);
+router.use("/profile", profileRoutes);
 
 module.exports = router;

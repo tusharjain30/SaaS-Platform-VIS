@@ -2,14 +2,14 @@ const express = require("express");
 const app = express();
 require("dotenv").config();
 
-const indexRouter = require("./routes/index");
-const adminRouter = require("./routes/admin/index");
-const userRouter = require("./routes/user/index");
+const indexRouter = require("./routes");
+const adminRouter = require("./routes/super-admin");
+const userRouter = require("./routes/user");
 
 app.use(express.json());
 
 app.use("/", indexRouter);
-app.use("/admin", adminRouter);
+app.use("/super-admin", adminRouter);
 app.use("/user", userRouter);
 
 const PORT = process.env.PORT || 3000;

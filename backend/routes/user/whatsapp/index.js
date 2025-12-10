@@ -1,15 +1,14 @@
 const express = require("express");
 const router = express.Router();
 
-const userAuth = require("../../../middleware/userAuth");
-const validator = require("../../../middleware/validator");
-const { submitWhatsappNumberSchema } = require("../../../schema/user/whatsapp/submitNumber.schema");
-const { verifyWhatsappOtpSchema } = require("../../../schema/user/whatsapp/verifyWhatsappOtp.schema");
+const VerifyWhatsappNumberRoutes = require("./VerifyWhatsappNumber");
+const createApiRoutes = require("./create-api");
+const templateRoutes = require("./template");
+const webhookRoutes = require("./meta-webhooks");
 
-const submitNumberRoute = require("./submitNumber");
-const verifyWhatsappOtpRoute = require("./verifyWhatsappOtp");
-
-router.use("/submit-number", userAuth, validator(submitWhatsappNumberSchema, "body"), submitNumberRoute);
-router.use("/verify-otp", userAuth, validator(verifyWhatsappOtpSchema, "body"), verifyWhatsappOtpRoute);
+router.use("/verify-whatsapp-number", VerifyWhatsappNumberRoutes);
+router.use("/create", createApiRoutes);
+router.use("/template", templateRoutes);
+router.use("/meta", webhookRoutes);
 
 module.exports = router;

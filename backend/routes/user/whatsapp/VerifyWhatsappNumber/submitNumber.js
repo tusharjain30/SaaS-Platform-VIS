@@ -1,10 +1,10 @@
-const { PrismaClient } = require("../../../generated/prisma/client");
+const { PrismaClient } = require("../../../../generated/prisma/client");
 const prisma = new PrismaClient();
 const express = require("express");
 const router = express.Router();
 
-const RESPONSE_CODES = require("../../../config/responseCode");
-const sendEmail = require("../../../utils/sendEmail");
+const RESPONSE_CODES = require("../../../../config/responseCode");
+const sendEmail = require("../../../../utils/sendEmail");
 
 router.post("/", async (req, res) => {
     try {
@@ -22,6 +22,9 @@ router.post("/", async (req, res) => {
         }
 
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const otpExpires = new Date(
+            Date.now() + 10 * 60 * 1000
+        );
 
         // save otp in db
         await prisma.wabaVerification.upsert({
@@ -29,12 +32,14 @@ router.post("/", async (req, res) => {
             update: {
                 clientPhone: phone,
                 otp,
+                otpExpires,
                 status: "PENDING"
             },
             create: {
                 userId: user.id,
                 clientPhone: phone,
                 otp,
+                otpExpires,
                 status: "PENDING"
             }
         });

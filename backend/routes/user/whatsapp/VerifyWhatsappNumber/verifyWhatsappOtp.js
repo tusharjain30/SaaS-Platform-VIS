@@ -1,5 +1,5 @@
-const RESPONSE_CODES = require("../../../config/responseCode");
-const { PrismaClient } = require("../../../generated/prisma/client");
+const RESPONSE_CODES = require("../../../../config/responseCode");
+const { PrismaClient } = require("../../../../generated/prisma/client");
 const prisma = new PrismaClient();
 const express = require("express");
 const router = express.Router();
@@ -37,11 +37,21 @@ router.post("/", async (req, res) => {
             })
         }
 
+        if (user.wabaVerification.otpExpires < new Date()) {
+            return res.status(RESPONSE_CODES.BAD_REQUEST).json({
+                status: 0,
+                message: "OTP Expired",
+                statusCode: RESPONSE_CODES.BAD_REQUEST,
+                data: {}
+            })
+        }
+
         await prisma.wabaVerification.update({
             where: { userId: user.id },
             data: {
                 status: "VERIFIED",
-                otp: null
+                otp: null,
+                otpExpires: null
             }
         });
 
@@ -49,7 +59,9 @@ router.post("/", async (req, res) => {
             status: 1,
             message: "Whatsapp number verified successfuly",
             statusCode: RESPONSE_CODES.GET,
-            data: {}
+            data: {
+                isWhatsappVerified: true
+            }
         });
 
     } catch (error) {

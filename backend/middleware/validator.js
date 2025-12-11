@@ -31,6 +31,7 @@ const validator = (schema, property = "body") => {
 
             next();
         } catch (err) {
+            console.log(err);
             if (err instanceof ZodError || err?.name === "ZodError") {
 
                 const firstError = err?.issues?.[0];

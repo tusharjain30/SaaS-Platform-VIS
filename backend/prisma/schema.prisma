@@ -161,10 +161,18 @@ model Template {
   name      String
   category  TemplateCategory
   language  String           @default("en_US")
+
+  // Text content
   body      String
   variables Json?
 
-  // Meta / Lifecycle
+   // Component-level fields (Flexible JSON)
+  header     Json?         
+  footer     Json?         
+  buttons    Json?        
+  components Json?        
+
+  // Meta / info
   status         TemplateStatus @default(DRAFT)
   metaTemplateId String? // Meta ka template ID
   rejectReason   String? // Meta rejection reason

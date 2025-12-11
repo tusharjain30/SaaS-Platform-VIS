@@ -3,7 +3,7 @@ const prisma = new PrismaClient();
 
 module.exports = async (req, res) => {
     try {
-        const change = req.body.entry?.[0]?.changes?.[0]?.value;
+        const change = req.body.entry?.[0]?.changes?.[0]?.value;   // template updates, message statuses, incoming messages
         if (!change) return res.sendStatus(200);
 
         // TEMPLATE STATUS UPDATE 

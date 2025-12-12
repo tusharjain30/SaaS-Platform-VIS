@@ -3,7 +3,10 @@ var router = express.Router();
 
 /* GET home page. */
 router.get("/", function (req, res, next) {
-  res.render("index", { title: "SaaS Platform VIS" });
+   res.json({
+        status: 1,
+        message: "WhatsApp SaaS API running successfully"
+    });
 });
 
 module.exports = router;

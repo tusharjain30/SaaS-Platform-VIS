@@ -1,5 +1,19 @@
 const { z } = require("zod");
 
+/* ---------------- MEDIA FILES ---------------- */
+const mediaFilesSchema = z.object({
+  image: z.string().url().optional(),
+  video: z.string().url().optional(),
+  document: z.string().url().optional(),
+
+  location: z
+    .object({
+      latitude: z.number().optional(),
+      longitude: z.number().optional()
+    })
+    .optional()
+}).optional();
+
 /* ---------------- HEADER ---------------- */
 const headerSchema = z.object({
   type: z.enum(["TEXT", "IMAGE", "VIDEO", "DOCUMENT", "LOCATION"]),
@@ -11,14 +25,6 @@ const headerSchema = z.object({
       code: z.ZodIssueCode.custom,
       path: ["text"],
       message: "Header text is required for TEXT header"
-    });
-  }
-
-  if (["IMAGE", "VIDEO", "DOCUMENT"].includes(data.type) && !data.url) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["url"],
-      message: `${data.type} header requires a media URL`
     });
   }
 });
@@ -62,7 +68,8 @@ const createTemplateSchema = z.object({
 
   header: headerSchema.optional(),
   footer: footerSchema,
-  buttons: buttonsSchema
+  buttons: buttonsSchema,
+  mediaFiles: mediaFilesSchema
 });
 
 module.exports = { createTemplateSchema };

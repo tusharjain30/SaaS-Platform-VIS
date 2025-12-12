@@ -3,18 +3,26 @@ const prisma = new PrismaClient();
 
 module.exports = async (req, res) => {
     try {
-        const change = req.body.entry?.[0]?.changes?.[0]?.value;   // template updates, message statuses, incoming messages
+        const entry = req.body.entry?.[0];
+        if (!entry) return res.sendStatus(200);
+
+        const change = entry.changes?.[0];
         if (!change) return res.sendStatus(200);
 
-        // TEMPLATE STATUS UPDATE 
-        if (change.event === "message_template_status_update") {
+        const { field, value } = change;
+
+        // TEMPLATE STATUS UPDATES
+        if (field === "message_template_status_update") {
+
             const {
+                message_template_id,
                 message_template_name,
                 message_template_language,
                 event,
-                reason,
-                message_template_id
-            } = change;
+                reason
+            } = value;
+
+            console.log("TEMPLATE STATUS UPDATE:", value);
 
             await prisma.template.updateMany({
                 where: {
@@ -24,25 +32,20 @@ module.exports = async (req, res) => {
                 },
                 data: {
                     status: event === "APPROVED" ? "APPROVED" : "REJECTED",
-                    metaTemplateId: message_template_id || null,
-                    rejectReason: reason || null
+                    metaTemplateId: message_template_id ?? null,
+                    rejectReason: reason ?? null
                 }
             });
+
+            return res.sendStatus(200);
         }
 
-        // MESSAGE DELIVERY STATUS (future ready) 
-        // if (change.statuses?.length) {
-        //     for (const s of change.statuses) {
-        //         await prisma.messageLog.updateMany({
-        //             where: { metaMessageId: s.id },
-        //             data: { status: s.status }
-        //         });
-        //     }
-        // }
-
-        // INCOMING MESSAGE (bot trigger later)
-        if (change.messages?.length) {
-            // save inbound messages, trigger bot flows
+        /* ----------------------------------------------
+           INCOMING CUSTOMER MESSAGES (BOT TRIGGER)
+        -----------------------------------------------*/
+        if (field === "messages" && value.messages?.length) {
+            // Save inbound messages for bot
+            // Trigger bot logic later
         }
 
         return res.sendStatus(200);
@@ -52,4 +55,3 @@ module.exports = async (req, res) => {
         return res.sendStatus(500);
     }
 };
-

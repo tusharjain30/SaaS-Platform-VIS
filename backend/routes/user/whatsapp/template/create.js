@@ -5,6 +5,8 @@ const submitTemplateToMeta = require("../../../../services/Meta/metaTemplate.ser
 const express = require("express");
 const router = express.Router();
 
+const { buildMediaUrl } = require("../../../../utils/mediaUrl");
+
 //  VARIABLE EXTRACTOR ({{1}}, {{2}} only)
 const extractVariables = (body) => {
     const regex = /\{\{\s*(\d+)\s*\}\}/g; // ONLY numeric placeholders
@@ -30,7 +32,8 @@ router.post("/", async (req, res) => {
             body,
             header,
             footer,
-            buttons
+            buttons,
+            location
         } = req.body;
 
         const exists = await prisma.template.findFirst({
@@ -46,29 +49,92 @@ router.post("/", async (req, res) => {
             });
         }
 
-        // extract variables from body
+        // Handle File Upload
+        let fileUrl = null;
+        if (req.file) {
+            fileUrl = buildMediaUrl(req.uploadFolder, req.uploadedFileName);
+        }
+
+        // Build mediaFiles Json
+        const mediaFiles = {
+            image: req.file?.mimetype.startsWith("image") ? fileUrl : null,
+            video: req.file?.mimetype.startsWith("video") ? fileUrl : null,
+            document: req.file?.mimetype.includes("pdf") ? fileUrl : null,
+            location: location ? JSON.parse(location) : null
+        };
+
+        // Validate media header
+        if (header?.type && ["IMAGE", "VIDEO", "DOCUMENT"].includes(header.type)) {
+            const hasFile = !!req.file;
+            const hasUrl = !!header.url;
+
+            if (!hasFile && !hasUrl) {
+                return res.status(RESPONSE_CODES.BAD_REQUEST).json({
+                    status: 0,
+                    message: `${header.type} header requires either a media file upload or a media URL`,
+                    statusCode: RESPONSE_CODES.BAD_REQUEST,
+                    data: {}
+                });
+            }
+        }
+
+
+        // Extract variables from body
         const variables = extractVariables(body);
 
         const components = [];
 
-        // Header
+        // ---- HEADER ----
         if (header) {
-            if (header.type === "TEXT") {
-                components.push({
-                    type: "HEADER",
-                    format: "TEXT",
-                    text: header.text
-                });
-            } else if (["IMAGE", "VIDEO", "DOCUMENT"].includes(header.type)) {
-                components.push({
-                    type: "HEADER",
-                    format: header.type
-                });
-            } else if (header.type === "LOCATION") {
-                components.push({
-                    type: "HEADER",
-                    format: "LOCATION"
-                });
+            const mediaId = header.url || fileUrl;
+
+            switch (header.type) {
+                case "TEXT":
+                    components.push({
+                        type: "HEADER",
+                        format: "TEXT",
+                        text: header.text
+                    });
+                    break;
+
+                case "IMAGE":
+                    components.push({
+                        type: "HEADER",
+                        format: "IMAGE",
+                        example: {
+                            header_handle: [mediaId]
+                        }
+                    });
+                    break;
+
+                case "VIDEO":
+                    components.push({
+                        type: "HEADER",
+                        format: "VIDEO"
+                    });
+                    break;
+
+                case "DOCUMENT":
+                    components.push({
+                        type: "HEADER",
+                        format: "DOCUMENT"
+                    });
+                    break;
+
+                case "LOCATION":
+                    components.push({
+                        type: "HEADER",
+                        format: "LOCATION"
+                    });
+                    break;
+
+                default:
+                    return res.status(RESPONSE_CODES.BAD_REQUEST).json({
+                        status: 0,
+                        message: "Invalid header type",
+                        statusCode: RESPONSE_CODES.BAD_REQUEST,
+                        data: {}
+                    });
             }
         }
 
@@ -142,6 +208,7 @@ router.post("/", async (req, res) => {
                     footer,
                     buttons,
                     components,
+                    mediaFiles,
                     status: "SUBMITTED",
                     metaTemplateId
                 }

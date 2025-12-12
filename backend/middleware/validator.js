@@ -5,7 +5,11 @@ const validator = (schema, property = "body") => {
     return (req, res, next) => {
         try {
 
-            if (property === "body" && Object.keys(req.body || {}).length === 0) {
+            if (property === "body" &&
+                Object.keys(req.body || {}).length === 0 &&
+                !req.file &&
+                !req.files
+            ) {
                 return res.status(400).json({
                     status: 0,
                     message: "Request body cannot be empty",

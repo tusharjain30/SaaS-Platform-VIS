@@ -158,19 +158,22 @@ model Template {
   userId Int
 
   // Template Core
-  name      String
-  category  TemplateCategory
-  language  String           @default("en_US")
+  name     String
+  category TemplateCategory
+  language String           @default("en_US")
 
   // Text content
   body      String
   variables Json?
 
-   // Component-level fields (Flexible JSON)
-  header     Json?         
-  footer     Json?         
-  buttons    Json?        
-  components Json?        
+  // Component-level fields (Flexible JSON)
+  header     Json?
+  footer     Json?
+  buttons    Json?
+  components Json?
+
+  // Uploaded Media Files (image, document, video, location payload etc)
+  mediaFiles Json?
 
   // Meta / info
   status         TemplateStatus @default(DRAFT)

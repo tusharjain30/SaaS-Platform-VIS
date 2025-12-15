@@ -5,7 +5,7 @@ const submitTemplateToMeta = require("../../../../services/Meta/metaTemplate.ser
 const express = require("express");
 const router = express.Router();
 
-const { buildMediaUrl } = require("../../../../utils/mediaUrl");
+const uploadMediaToMeta = require("../../../../services/Meta/uploadMediaToMeta");
 
 //  VARIABLE EXTRACTOR ({{1}}, {{2}} only)
 const extractVariables = (body) => {
@@ -28,7 +28,7 @@ router.post("/", async (req, res) => {
         const {
             name,
             category,
-            language,
+            language = "en_US",
             body,
             header,
             footer,
@@ -49,45 +49,12 @@ router.post("/", async (req, res) => {
             });
         }
 
-        // Handle File Upload
-        let fileUrl = null;
-        if (req.file) {
-            fileUrl = buildMediaUrl(req.uploadFolder, req.uploadedFileName);
-        }
-
-        // Build mediaFiles Json
-        const mediaFiles = {
-            image: req.file?.mimetype.startsWith("image") ? fileUrl : null,
-            video: req.file?.mimetype.startsWith("video") ? fileUrl : null,
-            document: req.file?.mimetype.includes("pdf") ? fileUrl : null,
-            location: location ? JSON.parse(location) : null
-        };
-
-        // Validate media header
-        if (header?.type && ["IMAGE", "VIDEO", "DOCUMENT"].includes(header.type)) {
-            const hasFile = !!req.file;
-            const hasUrl = !!header.url;
-
-            if (!hasFile && !hasUrl) {
-                return res.status(RESPONSE_CODES.BAD_REQUEST).json({
-                    status: 0,
-                    message: `${header.type} header requires either a media file upload or a media URL`,
-                    statusCode: RESPONSE_CODES.BAD_REQUEST,
-                    data: {}
-                });
-            }
-        }
-
-
         // Extract variables from body
         const variables = extractVariables(body);
-
         const components = [];
 
-        // ---- HEADER ----
+        // Header
         if (header) {
-            const mediaId = header.url || fileUrl;
-
             switch (header.type) {
                 case "TEXT":
                     components.push({
@@ -98,28 +65,33 @@ router.post("/", async (req, res) => {
                     break;
 
                 case "IMAGE":
+                case "VIDEO":
+                case "DOCUMENT": {
+                    if (!req.file) {
+                        return res.status(400).json({
+                            status: 0,
+                            message: `${header.type} header requires a media file upload`,
+                            statusCode: 400,
+                            data: {}
+                        });
+                    }
+
+                    const mediaId = await uploadMediaToMeta({
+                        filePath: req.file.path,
+                        mimeType: req.file.mimetype,
+                        phoneNumberId: process.env.PHONE_NUMBER_ID,
+                        accessToken: process.env.WHATSAPP_ACCESS_TOKEN
+                    });
+
                     components.push({
                         type: "HEADER",
-                        format: "IMAGE",
+                        format: header.type,
                         example: {
                             header_handle: [mediaId]
                         }
                     });
                     break;
-
-                case "VIDEO":
-                    components.push({
-                        type: "HEADER",
-                        format: "VIDEO"
-                    });
-                    break;
-
-                case "DOCUMENT":
-                    components.push({
-                        type: "HEADER",
-                        format: "DOCUMENT"
-                    });
-                    break;
+                }
 
                 case "LOCATION":
                     components.push({
@@ -145,7 +117,7 @@ router.post("/", async (req, res) => {
         });
 
         // Footer
-        if (footer) {
+        if (footer?.text) {
             components.push({
                 type: "FOOTER",
                 text: footer.text
@@ -154,7 +126,7 @@ router.post("/", async (req, res) => {
 
         // Buttons
         if (buttons?.length) {
-            const metaButtons = buttons.map(btn => {
+            const metaButtons = buttons.map((btn) => {
                 if (btn.type === "URL") {
                     return {
                         type: "URL",
@@ -177,25 +149,29 @@ router.post("/", async (req, res) => {
                 }
             });
 
+
             components.push({
                 type: "BUTTONS",
                 buttons: metaButtons
             });
         }
 
-        // Submit template to meta
-        let metaTemplateId = null;
-
+        // Submit to meta
+        let metaResponse = null;
         try {
-            const metaResponse = await submitTemplateToMeta(name, category, language, components);
-            metaTemplateId = metaResponse?.id ?? null;
+            metaResponse = await submitTemplateToMeta(
+                name,
+                category,
+                language,
+                components
+            );
         } catch (err) {
             console.log("Meta submission failed:", err?.response?.data || err.message);
         }
 
 
-        // Save template
-        const newTemplate = await prisma.$transaction(async (tx) => {
+        // Save to db
+        const template = await prisma.$transaction(async (tx) => {
             const created = await tx.template.create({
                 data: {
                     userId,
@@ -208,9 +184,8 @@ router.post("/", async (req, res) => {
                     footer,
                     buttons,
                     components,
-                    mediaFiles,
                     status: "SUBMITTED",
-                    metaTemplateId
+                    metaTemplateId: metaResponse?.id || null
                 }
             });
 
@@ -226,7 +201,7 @@ router.post("/", async (req, res) => {
             status: 1,
             message: "Template submitted for Meta approval",
             statusCode: RESPONSE_CODES.POST,
-            data: newTemplate
+            data: template
         });
 
     } catch (error) {

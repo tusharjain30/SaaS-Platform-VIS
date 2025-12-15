@@ -9,7 +9,8 @@ const submitTemplateToMeta = async (name, category, language, components) => {
             name,
             category,
             language,
-            components
+            components,
+            messaging_product: "whatsapp"
         };
 
         const response = await axios.post(url, payload, {
@@ -23,6 +24,8 @@ const submitTemplateToMeta = async (name, category, language, components) => {
         return response.data;
 
     } catch (error) {
+        console.error("DEBUG_META_ERROR_DETAILS:", error.response?.data);
+
         throw new Error(error?.response?.data?.error?.message || "Meta API error");
     }
 };

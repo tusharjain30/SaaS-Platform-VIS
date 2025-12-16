@@ -1,6 +1,8 @@
 const express = require("express");
 const router = express.Router();
+
 const validator = require("../../../middleware/validator");
+
 const { userRegisterSchema } = require("../../../schema/user/auth/register.schema");
 const { userLoginSchema } = require("../../../schema/user/auth/login.schema");
 const { verifyUserOtpSchema } = require("../../../schema/user/auth/verifyOtp.schema");

@@ -1,14 +1,17 @@
-const express = require("express");
 const RESPONSE_CODES = require("../../../config/responseCode");
+
+const express = require("express");
 const router = express.Router();
+
 const { PrismaClient } = require("../../../generated/prisma/client");
 const prisma = new PrismaClient();
+
 const bcrypt = require("bcrypt");
 
 router.post("/", async (req, res) => {
     try {
 
-        const { name, email, phone, password } = req.body;
+        const { name, email, phone, password, userName } = req.body;
 
         const existingUser = await prisma.user.findFirst({
             where: {
@@ -23,6 +26,24 @@ router.post("/", async (req, res) => {
                 statusCode: RESPONSE_CODES.ALREADY_EXIST,
                 data: {}
             })
+        }
+
+        if (userName) {
+            const exists = await prisma.user.findFirst({
+                where: {
+                    userName,
+                    isDeleted: false,
+                },
+            });
+
+            if (exists) {
+                return res.status(RESPONSE_CODES.ALREADY_EXIST).json({
+                    status: 0,
+                    message: "Username already taken",
+                    statusCode: RESPONSE_CODES.ALREADY_EXIST,
+                    data: {}
+                });
+            }
         }
 
         let role = await prisma.role.findFirst({
@@ -47,6 +68,7 @@ router.post("/", async (req, res) => {
                 phone,
                 password: hashedPassword,
                 roleId: role.id,
+                userName: userName || null,
             }
         });
 
@@ -61,6 +83,16 @@ router.post("/", async (req, res) => {
 
     } catch (error) {
         console.log("User Register Error:", err);
+        // Prisma unique constraint error
+        if (error.code === "P2002") {
+            return res.status(RESPONSE_CODES.ALREADY_EXIST).json({
+                status: 0,
+                message: "Duplicate field value",
+                statusCode: RESPONSE_CODES.ALREADY_EXIST,
+                data: error.meta,
+            });
+        }
+
         res.status(RESPONSE_CODES.ERROR).json({
             status: 0,
             message: "Internal server error",

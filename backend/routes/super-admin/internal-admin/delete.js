@@ -1,6 +1,8 @@
 const RESPONSE_CODES = require("../../../config/responseCode");
+
 const { PrismaClient } = require("../../../generated/prisma/client");
 const prisma = new PrismaClient();
+
 const express = require("express");
 const router = express.Router();
 

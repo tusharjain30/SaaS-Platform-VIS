@@ -1,7 +1,9 @@
 const express = require("express");
 const router = express.Router();
+
 const RESPONSE_CODES = require("../../../config/responseCode");
 const bcrypt = require("bcrypt");
+
 const { PrismaClient } = require("../../../generated/prisma/client");
 const prisma = new PrismaClient();
 
@@ -30,6 +32,24 @@ router.post("/", async (req, res) => {
                 statusCode: RESPONSE_CODES.ALREADY_EXIST,
                 data: {}
             });
+        }
+
+        if (userName) {
+            const exists = await prisma.admin.findFirst({
+                where: {
+                    userName,
+                    isDeleted: false,
+                },
+            });
+
+            if (exists) {
+                return res.status(RESPONSE_CODES.ALREADY_EXIST).json({
+                    status: 0,
+                    message: "Username already taken",
+                    statusCode: RESPONSE_CODES.ALREADY_EXIST,
+                    data: {}
+                });
+            }
         }
 
         // Ensure SYSTEM_ADMIN role exists

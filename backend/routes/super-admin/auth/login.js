@@ -1,9 +1,12 @@
 const express = require("express");
 const router = express.Router();
+
 const { PrismaClient } = require("../../../generated/prisma/client.js")
 const prisma = new PrismaClient();
+
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+
 const RESPONSE_CODES = require("../../../config/responseCode.js");
 
 router.post("/", async (req, res) => {
@@ -60,7 +63,7 @@ router.post("/", async (req, res) => {
         }
 
         // EXPIRY TIME logic (Remember Me)
-        const expiresIn = rememberMe ? process.env.JWT_EXPIRATION : "1d";
+        const expiresIn = rememberMe ? process.env.JWT_EXPIRATION : "15d";
 
         // Generate JWT token with tokenVersion
         const token = jwt.sign(

@@ -1,10 +1,14 @@
+const RESPONSE_CODES = require("../../../config/responseCode");
+
 const express = require("express");
 const router = express.Router();
+
 const { PrismaClient } = require("../../../generated/prisma/client");
-const RESPONSE_CODES = require("../../../config/responseCode");
 const prisma = new PrismaClient();
+
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
+
 const sendEmail = require("../../../utils/sendEmail");
 
 router.post("/", async (req, res) => {

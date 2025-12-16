@@ -10,49 +10,59 @@ router.post("/", async (req, res) => {
     try {
 
         const admin = req.admin;
-        let { name } = req.body;
-        name = name.toUpperCase();
+        const { name, roleType } = req.body;
 
-        // Only Super Admin
-        if (admin.role.roleType !== "SYSTEM_ADMIN") {
+        if (admin.role?.roleType !== "SYSTEM_ADMIN") {
             return res.status(RESPONSE_CODES.FORBIDDEN).json({
                 status: 0,
-                message: "Access denied",
+                message: "Access denied. Only Super Admin can create roles.",
                 statusCode: RESPONSE_CODES.FORBIDDEN,
-                data: {}
-            })
-        };
+                data: {},
+            });
+        }
 
-        const existing = await prisma.permission.findFirst({
+        const roleName = name.trim().toUpperCase();
+
+        const existingRole = await prisma.role.findFirst({
             where: {
-                name
+                name: roleName,
+                isDeleted: false
             }
         });
 
-        if (existing) {
+        if (existingRole) {
             return res.status(RESPONSE_CODES.ALREADY_EXIST).json({
                 status: 0,
-                message: "Permission already exists",
+                message: "Role already exists",
                 statusCode: RESPONSE_CODES.ALREADY_EXIST,
                 data: {}
             })
-        };
+        }
 
-        const permission = await prisma.permission.create({
+        // Create Role
+        const role = await prisma.role.create({
             data: {
-                name
+                name: roleName,
+                roleType: roleType
+            },
+            select: {
+                id: true,
+                name: true,
+                roleType: true,
+                isActive: true,
+                createdAt: true
             }
         });
 
         res.status(RESPONSE_CODES.POST).json({
             status: 1,
-            message: "Permission created successfully",
+            message: "Role created successfully",
             statusCode: RESPONSE_CODES.POST,
-            data: permission
+            data: role
         });
 
     } catch (error) {
-        console.log("Permission Create Error:", error);
+        console.log("Create roll error:", error);
         res.status(RESPONSE_CODES.ERROR).json({
             status: 0,
             message: "Internal server error",

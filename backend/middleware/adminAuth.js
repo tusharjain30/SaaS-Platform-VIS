@@ -1,7 +1,9 @@
 const jwt = require("jsonwebtoken");
+
 const { PrismaClient } = require("../generated/prisma/client");
-const RESPONSE_CODES = require("../config/responseCode");
 const prisma = new PrismaClient();
+
+const RESPONSE_CODES = require("../config/responseCode");
 
 const adminAuth = async (req, res, next) => {
     try {
@@ -17,7 +19,20 @@ const adminAuth = async (req, res, next) => {
             });
         }
 
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        let decoded;
+        try {
+            decoded = jwt.verify(token, process.env.JWT_SECRET);
+        } catch (error) {
+            return res.status(RESPONSE_CODES.UNAUTHORIZED).json({
+                status: 0,
+                message: err.name === "TokenExpiredError"
+                    ? "Session expired. Please login again."
+                    : "Invalid token",
+                statusCode: RESPONSE_CODES.UNAUTHORIZED,
+                data: {},
+            });
+        }
+
 
         // Find admin
         const admin = await prisma.admin.findUnique({

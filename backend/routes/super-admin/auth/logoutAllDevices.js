@@ -1,7 +1,9 @@
 const express = require("express");
 const router = express.Router();
+
 const { PrismaClient } = require("../../../generated/prisma/client.js")
 const prisma = new PrismaClient();
+
 const { v4: uuid } = require("uuid");
 const RESPONSE_CODES = require("../../../config/responseCode");
 

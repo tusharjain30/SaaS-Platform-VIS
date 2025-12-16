@@ -1,8 +1,10 @@
 const express = require("express");
 const router = express.Router();
+
 const { PrismaClient } = require("../../../generated/prisma/client");
-const RESPONSE_CODES = require("../../../config/responseCode");
 const prisma = new PrismaClient();
+
+const RESPONSE_CODES = require("../../../config/responseCode");
 
 router.post("/", async (req, res) => {
     try {

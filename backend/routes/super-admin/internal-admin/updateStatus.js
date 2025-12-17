@@ -1,59 +1,42 @@
+const express = require("express");
+const router = express.Router();
+
 const RESPONSE_CODES = require("../../../config/responseCode");
 
 const { PrismaClient } = require("../../../generated/prisma/client");
 const prisma = new PrismaClient();
 
-const express = require("express");
-const router = express.Router();
-
-router.get("/", async (req, res) => {
+router.patch("/", async (req, res) => {
     try {
 
         const loggedInAdmin = req.admin;
-        let { adminId } = req.validatedParams;
-        adminId = Number(adminId);
 
-        if (loggedInAdmin.role.roleType !== "SYSTEM_ADMIN") {
+        // 🔐 Only Super Admin
+        if (loggedInAdmin.role?.roleType !== "SYSTEM_ADMIN") {
             return res.status(RESPONSE_CODES.FORBIDDEN).json({
                 status: 0,
                 message: "Access denied",
                 statusCode: RESPONSE_CODES.FORBIDDEN,
-                data: {}
-            })
-        };
+                data: {},
+            });
+        }
 
-        if (!adminId) {
+        const { adminId, isActive } = req.body;
+
+        if (loggedInAdmin.id === adminId) {
             return res.status(RESPONSE_CODES.BAD_REQUEST).json({
                 status: 0,
-                message: "Invalid admin id",
+                message: "You cannot change your own status",
                 statusCode: RESPONSE_CODES.BAD_REQUEST,
-                data: {}
-            })
+                data: {},
+            });
         }
 
         const admin = await prisma.admin.findFirst({
             where: {
                 id: adminId,
-                isDeleted: false
+                isDeleted: false,
             },
-            select: {
-                id: true,
-                name: true,
-                email: true,
-                phone: true,
-                isActive: true,
-                isVerified: true,
-                createdAt: true,
-                updatedAt: true,
-                roleId: true,
-                role: {
-                    select: {
-                        id: true,
-                        name: true,
-                        roleType: true
-                    }
-                }
-            }
         });
 
         if (!admin) {
@@ -61,22 +44,36 @@ router.get("/", async (req, res) => {
                 status: 0,
                 message: "Admin not found",
                 statusCode: RESPONSE_CODES.NOT_FOUND,
-                data: {}
-            })
+                data: {},
+            });
         }
+
+        const updatedAdmin = await prisma.admin.update({
+            where: { id: adminId },
+            data: {
+                isActive,
+            },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                isActive: true,
+                updatedAt: true,
+            },
+        });
 
         res.status(RESPONSE_CODES.GET).json({
             status: 1,
-            message: "Admin detail fetched successfully",
+            message: `Admin ${isActive ? "activated" : "deactivated"} successfully`,
             statusCode: RESPONSE_CODES.GET,
-            data: admin
+            data: updatedAdmin,
         });
 
     } catch (error) {
-        console.log("Admin detail error:", error);
+        console.log("Update Admin Status Error:", error);
         res.status(RESPONSE_CODES.ERROR).json({
             status: 0,
-            message: "Internal server error",
+            message: error.message || "Something went wrong while registering",
             statusCode: RESPONSE_CODES.ERROR,
             data: {}
         });

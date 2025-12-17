@@ -4,7 +4,7 @@ const authRoutes = require("./auth");
 const internalAdminRoutes = require("./internal-admin");
 const permissionRoutes = require("./permission");
 const profileRoutes = require("./profile");
-const rollRoutes = require("./roll");
+const rollRoutes = require("./role");
 
 router.use("/auth", authRoutes);
 router.use("/internal-admin", internalAdminRoutes);

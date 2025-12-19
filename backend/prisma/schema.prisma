@@ -144,9 +144,10 @@ model MessageLog {
 
   to           String // client sending to
   type         MessageType
+  direction    MessageDirection @default(OUTBOUND)
   templateName String?
   payload      Json
-  status       MessageStatus @default(PENDING)
+  status       MessageStatus    @default(PENDING)
 
   createdAt DateTime @default(now())
 }
@@ -185,6 +186,8 @@ model Template {
   isActive  Boolean @default(true)
   isDeleted Boolean @default(false)
 
+  bots BotTemplate[]
+
   // Audit
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -196,15 +199,184 @@ model Template {
 
 model Bot {
   id     Int  @id @default(autoincrement())
-  user   User @relation(fields: [userId], references: [id])
   userId Int
+  user   User @relation(fields: [userId], references: [id])
 
-  name     String
-  flow     Json // bot steps JSON format
-  isActive Boolean @default(true)
+  name         String
+  botType      BotType @default(SIMPLE)
+  triggerType  BotTriggerType
+  triggerValue String?
+  flow         Json? // bot steps JSON format
+
+  replies BotReply[]  
+
+  isActive     Boolean        @default(true)
+  isDeleted    Boolean        @default(false)
+
+  sessions  BotSession[]
+  templates BotTemplate[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([userId, botType, triggerType, isActive])
+}
+
+model BotReply {
+  id Int @id @default(autoincrement())
+
+  botId Int
+  bot   Bot @relation(fields: [botId], references: [id])
+
+  name String
+
+  replyType BotReplyType @default(SIMPLE)
+
+  // Trigger
+  triggerType  BotTriggerType
+  triggerValue String? // comma separated keywords / payload
+
+  // Message
+  bodyText   String?
+  footerText String?
+
+  // Interactive selector
+  interactiveType InteractiveType?
+
+  // Relations
+  media       BotReplyMedia?
+  buttons     BotReplyButton[]
+  ctaButton   BotReplyCTA?
+  listMessage BotReplyList?
+
+  isActive  Boolean @default(true)
+  isDeleted Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([botId, replyType, interactiveType, isActive])
+}
+
+model BotReplyMedia {
+  id Int @id @default(autoincrement())
+
+  replyId Int @unique
+  reply   BotReply @relation(fields: [replyId], references: [id])
+
+  mediaType BotMediaType
+
+  fileUrl     String?
+  mimeType    String?
+  metaMediaId String?
+
+  createdAt DateTime @default(now())
+}
+
+model BotReplyButton {
+  id Int @id @default(autoincrement())
+
+  replyId Int
+  reply   BotReply @relation(fields: [replyId], references: [id])
+
+  label   String
+  payload String? // keyword / next trigger
+  order   Int
+
+  createdAt DateTime @default(now())
+
+  @@unique([replyId, order])
+}
+
+model BotReplyCTA {
+  id Int @id @default(autoincrement())
+
+  replyId Int @unique
+  reply   BotReply @relation(fields: [replyId], references: [id])
+
+  displayText String
+  url         String
+
+  createdAt DateTime @default(now())
+}
+
+model BotReplyList {
+  id Int @id @default(autoincrement())
+
+  replyId Int @unique
+  reply   BotReply @relation(fields: [replyId], references: [id])
+
+  buttonLabel String
+
+  sections BotReplyListSection[]
+
+  createdAt DateTime @default(now())
+}
+
+model BotReplyListSection {
+  id Int @id @default(autoincrement())
+
+  listId Int
+  list   BotReplyList @relation(fields: [listId], references: [id])
+
+  title String
+  order Int
+
+  rows BotReplyListRow[]
+
+  createdAt DateTime @default(now())
+}
+
+model BotReplyListRow {
+  id Int @id @default(autoincrement())
+
+  sectionId Int
+  section   BotReplyListSection @relation(fields: [sectionId], references: [id])
+
+  title       String
+  description String?
+  rowId       String // WhatsApp sends this back
+  order       Int
+
+  createdAt DateTime @default(now())
+
+  @@unique([sectionId, rowId])
+}
+
+model BotSession {
+  id          Int            @id @default(autoincrement())
+  userId      Int
+  contact     String // customer phone
+  botId       Int
+  state       Json? // current node, variables
+  triggerType BotTriggerType
+  botType BotType
+
+  isActive    Boolean @default(true)
+  isAIHandled Boolean @default(false)
+
+  lastMessageAt DateTime  @default(now())
+  expiresAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bot Bot @relation(fields: [botId], references: [id])
+
+  @@unique([userId, contact, isActive])
+}
+
+model BotTemplate {
+  id         Int @id @default(autoincrement())
+  botId      Int
+  templateId Int
+
+  bot      Bot      @relation(fields: [botId], references: [id])
+  template Template @relation(fields: [templateId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@unique([botId, templateId])
 }
 
 model Plan {
@@ -273,6 +445,23 @@ model AccessToken {
   @@index([userId, service, isActive])
 }
 
+model Contact {
+  id    Int    @id @default(autoincrement())
+  phone String @unique
+
+  firstName String?
+  lastName  String?
+  email     String?
+  country   String?
+  language  String?
+
+  promotionalOptIn Boolean @default(true)
+  aiEnabled        Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 enum TemplateCategory {
   MARKETING
   UTILITY
@@ -319,4 +508,50 @@ enum ServiceType {
   TEMPLATE
   BOT
   MESSAGE
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum BotTriggerType {
+  DEFAULT
+  KEYWORD
+  BUTTON
+  WELCOME
+  IS
+  STARTS_WITH
+  ENDS_WITH
+  CONTAINS_WORD
+  CONTAINS
+  STOP_PROMOTIONAL
+  START_PROMOTIONAL
+  START_AI_BOT
+  STOP_AI_BOT
+}
+
+enum BotReplyType {
+  SIMPLE
+  MEDIA
+  INTERACTIVE
+}
+
+enum InteractiveType {
+  REPLY_BUTTONS
+  CTA_URL
+  LIST
+}
+
+enum BotMediaType {
+  IMAGE
+  VIDEO
+  DOCUMENT
+  AUDIO
+}
+
+enum BotType {
+  SIMPLE
+  FLOW
+  AI
 }

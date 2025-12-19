@@ -72,7 +72,7 @@ router.post("/", async (req, res) => {
         }
 
         // If already verified, Generate JWT token
-        const expiresIn = rememberMe ? process.env.USER_JWT_EXPIRATION : "1h";
+        const expiresIn = rememberMe ? process.env.USER_JWT_EXPIRATION : "7d";
 
         const token = jwt.sign(
             {

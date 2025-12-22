@@ -9,7 +9,7 @@ const router = express.Router();
 router.patch("/", async (req, res) => {
     try {
 
-        const userId = req.user.id;
+        const userId = req.apiContext.userId;
         const { id, isActive } = req.body;
 
         const bot = await prisma.bot.findFirst({

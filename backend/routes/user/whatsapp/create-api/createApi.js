@@ -46,6 +46,7 @@ router.post("/", async (req, res) => {
         } else {
             // Free default
             services.push("TEMPLATE");
+            services.push("BOT");
         }
 
         if (!services.length) {
@@ -66,7 +67,7 @@ router.post("/", async (req, res) => {
             }
 
             if (service === "BOT") {
-                limitValue = plan?.maxBots || 0;
+                limitValue = plan?.maxBots || 10;
             }
 
             // Revoke old active tokens
@@ -93,7 +94,7 @@ router.post("/", async (req, res) => {
                 data: {
                     userId,
                     service,
-                    tokenHash: hashToken(token),
+                    tokenHash: token,
                     limitValue
                 }
             });

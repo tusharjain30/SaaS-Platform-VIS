@@ -1,7 +1,7 @@
 const RESPONSE_CODES = require("../../../../config/responseCode");
 const { PrismaClient } = require("../../../../generated/prisma/client");
 const prisma = new PrismaClient();
-const submitTemplateToMeta = require("../../../../services/Meta/metaTemplate.service");
+const submitTemplateToMeta = require("../../../../services/Meta/submitTemplateToMeta.service");
 const express = require("express");
 const router = express.Router();
 

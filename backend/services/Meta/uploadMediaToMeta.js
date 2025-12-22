@@ -11,8 +11,7 @@ const uploadMediaToMeta = async ({ filePath, mimeType, phoneNumberId, accessToke
         formData.append("type", mimeType);
         formData.append("messaging_product", "whatsapp");
 
-        const url = `https://graph.facebook.com/${process.env.META_API_VERSION}/${phoneNumberId}/media`;
-        // const url = `https://graph.facebook.com/${process.env.META_API_VERSION}/${process.env.META_WABA_ID}/media`;
+        const url = `https://graph.facebook.com/${process.env.META_API_VERSION}/${phoneNumberId}/media`;  // META_API_VERSION="v20.0"
 
         const response = await axios.post(url, formData, {
             headers: {
@@ -25,6 +24,7 @@ const uploadMediaToMeta = async ({ filePath, mimeType, phoneNumberId, accessToke
             throw new Error("Media upload failed: no media id returned");
         }
 
+        console.log("Media Id:", response.data.id);
         return response.data.id;
 
     } catch (error) {

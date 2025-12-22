@@ -9,7 +9,7 @@ const router = express.Router();
 router.delete("/", async (req, res) => {
     try {
 
-        const userId = req.user.id;
+        const userId = req.apiContext.userId;
         const { id } = req.body;
 
         const bot = await prisma.bot.findFirst({

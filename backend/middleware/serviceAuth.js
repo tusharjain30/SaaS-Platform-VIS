@@ -27,6 +27,7 @@ const serviceAuth = (requiredService) => {
             try {
                 decoded = jwt.verify(token, process.env.SERVICE_TOKEN_SECRET);
             } catch (error) {
+                console.log(error)
                 return res.status(RESPONSE_CODES.UNAUTHORIZED).json({
                     status: 0,
                     message: "Invalid API token",
@@ -46,7 +47,7 @@ const serviceAuth = (requiredService) => {
                 });
             }
 
-            const tokenHash = hashToken(token);
+            const tokenHash = token;
 
             const accessToken = await prisma.accessToken.findFirst({
                 where: {

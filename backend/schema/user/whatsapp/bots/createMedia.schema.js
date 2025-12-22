@@ -1,9 +1,13 @@
 const { z } = require("zod");
 
-const createSimpleBotSchema = z.object({
-  name: z.string().min(2, "Bot name is required"),
+const createMediaBotSchema = z.object({
+  botName: z.string({
+     required_error: "Bot name is required"
+  }).min(2, "Bot name is required"),
 
-  replyText: z.string().min(1).optional(),
+  replyText: z.string({
+    required_error: "Reply Text is required"
+  }),
 
   triggerType: z.enum([
     "WELCOME",
@@ -17,25 +21,24 @@ const createSimpleBotSchema = z.object({
     "START_PROMOTIONAL",
     "START_AI_BOT",
     "STOP_AI_BOT",
-    "BUTTON",
   ]),
 
   triggerValue: z.string().optional().nullable(),
 
+  mediaType: z.enum([
+    "IMAGE",
+    "VIDEO",
+    "DOCUMENT",
+    "AUDIO",
+  ], {
+    required_error: "Media Type is required"
+  }),
+
   isActive: z.boolean().optional(),
 }).superRefine((data, ctx) => {
 
-  // SIMPLE reply must have text
-  if (!data.replyText) {
-    ctx.addIssue({
-      path: ["replyText"],
-      message: "Reply text is required for simple bot",
-    });
-  }
-
-  // DEFAULT / WELCOME rules
   if (
-    !["DEFAULT", "WELCOME"].includes(data.triggerType) &&
+    !["WELCOME", "DEFAULT"].includes(data.triggerType) &&
     !data.triggerValue
   ) {
     ctx.addIssue({
@@ -45,7 +48,7 @@ const createSimpleBotSchema = z.object({
   }
 
   if (
-    ["DEFAULT", "WELCOME"].includes(data.triggerType) &&
+    ["WELCOME", "DEFAULT"].includes(data.triggerType) &&
     data.triggerValue
   ) {
     ctx.addIssue({
@@ -55,4 +58,4 @@ const createSimpleBotSchema = z.object({
   }
 });
 
-module.exports = { createSimpleBotSchema };
+module.exports = { createMediaBotSchema };

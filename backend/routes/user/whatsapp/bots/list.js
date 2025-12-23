@@ -12,14 +12,13 @@ router.get("/", async (req, res) => {
         const userId = req.apiContext.userId;
 
         const {
-            page,
-            limit,
+            page = 1,
+            limit = 10,
             search,
             botType,
             triggerType,
             isActive,
         } = req.validatedQuery;
-        console.log(page, limit)
 
         const skip = (page - 1) * limit;
 
@@ -43,25 +42,46 @@ router.get("/", async (req, res) => {
                 skip,
                 take: limit,
                 orderBy: { createdAt: "desc" },
-                select: {
-                    id: true,
-                    name: true,
-                    botType: true,
-                    triggerType: true,
-                    triggerValue: true,
-                    isActive: true,
-                    createdAt: true,
+                include: {
+                    replies: {
+                        where: {
+                            isDeleted: false,
+                        },
+                        orderBy: { createdAt: "asc" },
+                        take: 1,
+                        select: {
+                            id: true,
+                            replyType: true,
+                            interactiveType: true,
+                        },
+                    },
                 },
             }),
             prisma.bot.count({ where }),
         ]);
+
+        const list = bots.map((bot) => ({
+            botId: bot.id,
+            name: bot.name,
+            botType: bot.botType,
+            triggerType: bot.triggerType,
+            triggerValue: bot.triggerValue,
+            isActive: bot.isActive,
+            createdAt: bot.createdAt,
+
+            // UI NEEDS THIS
+            replyId: bot.replies[0]?.id || null,
+            replyType: bot.replies[0]?.replyType || null,
+            interactiveType: bot.replies[0]?.interactiveType || null,
+        }));
+
 
         res.status(RESPONSE_CODES.GET).json({
             status: 1,
             message: "Bots fetched successfully",
             statusCode: RESPONSE_CODES.GET,
             data: {
-                list: bots,
+                list,
                 pagination: {
                     page,
                     limit,

@@ -29,12 +29,39 @@ router.delete("/", async (req, res) => {
             })
         }
 
-        await prisma.bot.update({
-            where: { id },
-            data: {
-                isDeleted: true,
-                isActive: false
-            }
+        await prisma.$transaction(async (tx) => {
+
+            //  Soft delete bot
+            await tx.bot.update({
+                where: { id },
+                data: {
+                    isDeleted: true,
+                    isActive: false,
+                },
+            });
+
+            // Soft delete all replies
+            await tx.botReply.updateMany({
+                where: {
+                    id,
+                    isDeleted: false,
+                },
+                data: {
+                    isDeleted: true,
+                    isActive: false,
+                },
+            });
+
+            // End active sessions
+            await tx.botSession.updateMany({
+                where: {
+                    id,
+                    isActive: true,
+                },
+                data: {
+                    isActive: false,
+                },
+            });
         });
 
         res.status(RESPONSE_CODES.GET).json({

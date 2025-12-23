@@ -38,9 +38,51 @@ router.patch("/", async (req, res) => {
             });
         }
 
-        await prisma.bot.update({
-            where: { id },
-            data: { isActive },
+        // Ensure single DEFAULT / WELCOME active bot
+        if (
+            isActive &&
+            ["DEFAULT", "WELCOME"].includes(bot.triggerType)
+        ) {
+            const existing = await prisma.bot.findFirst({
+                where: {
+                    userId,
+                    triggerType: bot.triggerType,
+                    isActive: true,
+                    isDeleted: false,
+                    NOT: { id },
+                },
+            });
+
+            if (existing) {
+                return res.status(RESPONSE_CODES.BAD_REQUEST).json({
+                    status: 0,
+                    message: `${bot.triggerType} bot already active`,
+                    statusCode: RESPONSE_CODES.BAD_REQUEST,
+                    data: {},
+                });
+            }
+        }
+
+        await prisma.$transaction(async (tx) => {
+            // Update bot
+            await tx.bot.update({
+                where: { id },
+                data: { isActive },
+            });
+
+            // Update all replies
+            await tx.botReply.updateMany({
+                where: { id, isDeleted: false },
+                data: { isActive },
+            });
+
+            // Close sessions if deactivating
+            if (!isActive) {
+                await tx.botSession.updateMany({
+                    where: { id, isActive: true },
+                    data: { isActive: false },
+                });
+            }
         });
 
         res.status(RESPONSE_CODES.GET).json({

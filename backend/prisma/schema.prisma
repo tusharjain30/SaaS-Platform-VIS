@@ -203,15 +203,15 @@ model Bot {
   user   User @relation(fields: [userId], references: [id])
 
   name         String
-  botType      BotType @default(SIMPLE)
+  botType      BotType        @default(SIMPLE)
   triggerType  BotTriggerType
   triggerValue String?
   flow         Json? // bot steps JSON format
 
-  replies BotReply[]  
+  replies BotReply[]
 
-  isActive     Boolean        @default(true)
-  isDeleted    Boolean        @default(false)
+  isActive  Boolean @default(true)
+  isDeleted Boolean @default(false)
 
   sessions  BotSession[]
   templates BotTemplate[]
@@ -261,7 +261,7 @@ model BotReply {
 model BotReplyMedia {
   id Int @id @default(autoincrement())
 
-  replyId Int @unique
+  replyId Int      @unique
   reply   BotReply @relation(fields: [replyId], references: [id])
 
   mediaType BotMediaType
@@ -291,7 +291,7 @@ model BotReplyButton {
 model BotReplyCTA {
   id Int @id @default(autoincrement())
 
-  replyId Int @unique
+  replyId Int      @unique
   reply   BotReply @relation(fields: [replyId], references: [id])
 
   displayText String
@@ -303,7 +303,7 @@ model BotReplyCTA {
 model BotReplyList {
   id Int @id @default(autoincrement())
 
-  replyId Int @unique
+  replyId Int      @unique
   reply   BotReply @relation(fields: [replyId], references: [id])
 
   buttonLabel String
@@ -350,7 +350,7 @@ model BotSession {
   botId       Int
   state       Json? // current node, variables
   triggerType BotTriggerType
-  botType BotType
+  botType     BotType
 
   isActive    Boolean @default(true)
   isAIHandled Boolean @default(false)

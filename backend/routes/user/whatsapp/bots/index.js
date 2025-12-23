@@ -5,6 +5,7 @@ const validator = require("../../../../middleware/validator");
 // const userAuth = require("../../../../middleware/userAuth");
 const serviceAuth = require("../../../../middleware/serviceAuth");
 const upload = require("../../../../middleware/multerUpload");
+const parseJSONFields = require("../../../../middleware/parseJSONFields");
 
 const { createSimpleBotSchema } = require("../../../../schema/user/whatsapp/bots/createSimple.schema");
 const { getAllBotsSchema } = require("../../../../schema/user/whatsapp/bots/list.schema");
@@ -13,6 +14,7 @@ const { deleteBotSchema } = require("../../../../schema/user/whatsapp/bots/delet
 const { statusBotSchema } = require("../../../../schema/user/whatsapp/bots/status.schema");
 const { createMediaBotSchema } = require("../../../../schema/user/whatsapp/bots/createMedia.schema");
 const { createAdvanceBotSchema } = require("../../../../schema/user/whatsapp/bots/createInteractive.schema");
+const { updateBotReplySchema } = require("../../../../schema/user/whatsapp/bots/update.schema");
 
 const createSimpleBotRoute = require("./createSimple");
 const createMediaBotRoute = require("./createMedia");
@@ -21,7 +23,7 @@ const listRoute = require("./list");
 const detailRoute = require("./detail");
 const deleteRoute = require("./delete");
 const statusRoute = require("./status");
-const parseJSONFields = require("../../../../middleware/parseJSONFields");
+const updateRoute = require("./update");
 
 router.use("/createSimpleBot", serviceAuth("BOT"), validator(createSimpleBotSchema, "body"), createSimpleBotRoute);
 router.use("/createMediaBot", serviceAuth("BOT"), upload.single("mediaFile"), validator(createMediaBotSchema, "body"), createMediaBotRoute);
@@ -30,5 +32,6 @@ router.use("/list", serviceAuth("BOT"), validator(getAllBotsSchema, "query"), li
 router.use("/detail", serviceAuth("BOT"), validator(getBotByIdSchema, "body"), detailRoute);
 router.use("/delete", serviceAuth("BOT"), validator(deleteBotSchema, "body"), deleteRoute);
 router.use("/status", serviceAuth("BOT"), validator(statusBotSchema, "body"), statusRoute);
+router.use("/update", serviceAuth("BOT"), upload.single("mediaFile"), parseJSONFields, validator(updateBotReplySchema, "body"), updateRoute);
 
 module.exports = router;

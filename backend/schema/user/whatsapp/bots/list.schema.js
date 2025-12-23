@@ -3,19 +3,25 @@ const { z } = require("zod");
 const getAllBotsSchema = z.object({
     page: z
         .string()
+        .optional()
         .default("1")
         .transform(v => Number(v))
-        .refine(v => !v || v > 0, "Page must be greater than 0"),
+        .refine(v => Number.isInteger(v) && v > 0, {
+            message: "Page must be a positive integer",
+        }),
 
     limit: z
         .string()
+        .optional()
         .default("10")
         .transform(v => Number(v))
-        .refine(v => !v || v > 0, "Limit must be greater than 0"),
+        .refine(v => Number.isInteger(v) && v > 0 && v <= 100, {
+            message: "Limit must be between 1 and 100",
+        }),
 
-    search: z.string().optional(),
+    search: z.string().trim().optional(),
 
-    botType: z.enum(["SIMPLE", "MEDIA", "ADVANCE"]).optional(),
+    botType: z.enum(["SIMPLE", "FLOW", "AI"]).optional(),
 
     triggerType: z.enum([
         "DEFAULT",
@@ -34,13 +40,9 @@ const getAllBotsSchema = z.object({
     ]).optional(),
 
     isActive: z
-        .string()
+        .enum(["true", "false"])
         .optional()
-        .transform(v => {
-            if (v === "true") return true;
-            if (v === "false") return false;
-            return undefined;
-        }),
+        .transform(v => (v === "true" ? true : v === "false" ? false : undefined)),
 });
 
 module.exports = { getAllBotsSchema };

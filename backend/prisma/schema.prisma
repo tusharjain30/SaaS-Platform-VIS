@@ -208,7 +208,10 @@ model Bot {
   triggerValue String?
   flow         Json? // bot steps JSON format
 
+  entryNodeKey String?
+
   replies BotReply[]
+  flows   BotFlow[]
 
   isActive  Boolean @default(true)
   isDeleted Boolean @default(false)
@@ -230,11 +233,16 @@ model BotReply {
 
   name String
 
+  nodeKey String // unique key like "WELCOME", "ASK_ORDER_ID"
+  isStart Boolean @default(false)
+  isEnd   Boolean @default(false)
+
   replyType BotReplyType @default(SIMPLE)
 
   // Trigger
-  triggerType  BotTriggerType
-  triggerValue String? // comma separated keywords / payload
+  triggerType   BotTriggerType
+  triggerValue  String? // comma separated keywords / payload
+  parentNodeKey String?
 
   // Message
   bodyText   String?
@@ -249,13 +257,16 @@ model BotReply {
   ctaButton   BotReplyCTA?
   listMessage BotReplyList?
 
+  nextNodeKey String?
+
   isActive  Boolean @default(true)
   isDeleted Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([botId, replyType, interactiveType, isActive])
+  @@unique([botId, nodeKey])
+  @@index([botId, replyType, interactiveType, isActive, nodeKey])
 }
 
 model BotReplyMedia {
@@ -344,13 +355,18 @@ model BotReplyListRow {
 }
 
 model BotSession {
-  id          Int            @id @default(autoincrement())
-  userId      Int
-  contact     String // customer phone
-  botId       Int
+  id      Int    @id @default(autoincrement())
+  userId  Int
+  contact String // customer phone
+  botId   Int
+
+  currentNodeKey  String
+  previousNodeKey String?
+
   state       Json? // current node, variables
   triggerType BotTriggerType
   botType     BotType
+  flowVersion Int?
 
   isActive    Boolean @default(true)
   isAIHandled Boolean @default(false)
@@ -363,7 +379,24 @@ model BotSession {
 
   bot Bot @relation(fields: [botId], references: [id])
 
-  @@unique([userId, contact, isActive])
+  @@unique([userId, botId, contact, isActive])
+}
+
+model BotFlow {
+  id Int @id @default(autoincrement())
+
+  botId Int
+  bot   Bot @relation(fields: [botId], references: [id])
+
+  flowDefinition Json // nodes + edges
+
+  version     Int     @default(1)
+  isPublished Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([botId, version])
 }
 
 model BotTemplate {

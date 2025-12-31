@@ -6,11 +6,13 @@ const createApiRoutes = require("./create-api");
 const templateRoutes = require("./template");
 const webhookRoutes = require("./meta-webhooks");
 const botRoutes = require("./bots");
+const botFlowRoutes = require("./bot-flows");
 
 router.use("/verify-whatsapp-number", VerifyWhatsappNumberRoutes);
 router.use("/create", createApiRoutes);
 router.use("/template", templateRoutes);
 router.use("/meta", webhookRoutes);
 router.use("/bot", botRoutes);
+router.use("/bot-flow", botFlowRoutes);
 
 module.exports = router;

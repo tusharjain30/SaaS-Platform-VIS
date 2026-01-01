@@ -15,6 +15,7 @@ const { deleteSimpleBotReplySchema } = require("../../../../schema/user/whatsapp
 const { createMediaBotReplySchema } = require("../../../../schema/user/whatsapp/bot-flows/createMediaBotReply.schema");
 const { updateMediaBotReplySchema } = require("../../../../schema/user/whatsapp/bot-flows/updateMediaBotReply.schema");
 const { deleteMediaBotReplySchema } = require("../../../../schema/user/whatsapp/bot-flows/deleteMediaBotReply.schema");
+const { createInteractiveBotReplySchema } = require("../../../../schema/user/whatsapp/bot-flows/createAdvanceBotReply.schema");
 
 const createRoute = require("./create");
 const updateRoute = require("./update");
@@ -25,15 +26,20 @@ const deleteSimpleBotReplyRoute = require("./deleteSimpleBotReply");
 const createMediaBotReplyRoute = require("./createMediaBotReply");
 const updateMediaBotReplyRoute = require("./updateMediaBotReply");
 const deleteMediaBotReplyRoute = require("./deleteMediaBotReply");
+const createInteractiveBotReplyRoute = require("./createInteractiveBotReply");
 
 router.use("/create", serviceAuth("BOT"), validator(createBotFlowSchema, "body"), createRoute);
 router.use("/update", serviceAuth("BOT"), validator(updateBotFlowSchema, "body"), updateRoute);
 router.use("/delete", serviceAuth("BOT"), validator(deleteBotFlowSchema, "body"), deleteRoute);
+
 router.use("/createSimpleBotReply", serviceAuth("BOT"), validator(createSimpleBotReplySchema, "body"), createSimpleBotReplyRoute);
 router.use("/updateSimpleBotReply", serviceAuth("BOT"), validator(updateSimpleBotReplySchema, "body"), updateSimpleBotReplyRoute);
 router.use("/deleteSimpleBotReply", serviceAuth("BOT"), validator(deleteSimpleBotReplySchema, "body"), deleteSimpleBotReplyRoute);
+
 router.use("/createMediaBotReply", serviceAuth("BOT"), upload.single("mediaFile"), parseJSONFields, validator(createMediaBotReplySchema, "body"), createMediaBotReplyRoute);
 router.use("/updateMediaBotReply", serviceAuth("BOT"), upload.single("mediaFile"), parseJSONFields, validator(updateMediaBotReplySchema, "body"), updateMediaBotReplyRoute);
 router.use("/deleteMediaBotReply", serviceAuth("BOT"), validator(deleteMediaBotReplySchema, "body"), deleteMediaBotReplyRoute);
+
+router.use("/createInteractiveBotReply", serviceAuth("BOT"), upload.single("mediaFile"), parseJSONFields, validator(createInteractiveBotReplySchema, "body"), createInteractiveBotReplyRoute);
 
 module.exports = router;

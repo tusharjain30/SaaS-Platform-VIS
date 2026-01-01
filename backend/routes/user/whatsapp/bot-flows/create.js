@@ -101,7 +101,7 @@ router.post("/", async (req, res) => {
             message: "Failed to create bot flow",
             statusCode: RESPONSE_CODES.ERROR,
             data: {}
-        })
+        });
     };
 })
 

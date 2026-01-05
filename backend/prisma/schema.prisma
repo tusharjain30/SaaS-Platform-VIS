@@ -138,19 +138,26 @@ model WabaVerification {
 }
 
 model MessageLog {
-  id     Int  @id @default(autoincrement())
-  user   User @relation(fields: [userId], references: [id])
-  userId Int
+  id            Int      @id @default(autoincrement())
+  userId        Int
+  to            String
 
-  to           String // client sending to
-  type         MessageType
-  direction    MessageDirection @default(OUTBOUND)
+  // Meta
+  metaMessageId String?  @unique
+
+  type          MessageType
+  direction     MessageDirection
   templateName String?
-  payload      Json
-  status       MessageStatus    @default(PENDING)
+  payload       Json
+  status        MessageStatus @default(PENDING)
 
-  createdAt DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, direction])
 }
+
 
 model Template {
   id Int @id @default(autoincrement())

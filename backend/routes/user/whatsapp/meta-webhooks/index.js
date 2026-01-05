@@ -5,6 +5,6 @@ const handleMetaWebhook = require("./handleMetaWebhook");
 const verifyMetaWebhook = require("./verifyMetaWebhook");
 
 router.post("/webhook", handleMetaWebhook);
-router.get("/webhook", verifyMetaWebhook);
+router.get("/webhook1", verifyMetaWebhook);
 
 module.exports = router;

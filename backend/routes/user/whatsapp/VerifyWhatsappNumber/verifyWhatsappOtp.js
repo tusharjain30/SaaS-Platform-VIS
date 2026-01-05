@@ -7,61 +7,62 @@ const router = express.Router();
 router.post("/", async (req, res) => {
     try {
 
-        const user = req.user;
+        const userId = req.user.id;
         const { otp } = req.body;
 
-        if (!user.wabaVerification) {
+        if (!otp) {
+            return res.status(RESPONSE_CODES.BAD_REQUEST).json(
+                {
+                    status: 0,
+                    message: "OTP required",
+                    statusCode: RESPONSE_CODES.BAD_REQUEST,
+                    data: {}
+                }
+            );
+        }
+
+        const record = await prisma.wabaVerification.findUnique({
+            where: { userId }
+        });
+
+        if (!record) {
             return res.status(RESPONSE_CODES.BAD_REQUEST).json({
                 status: 0,
-                message: "Whatsapp number not submitted",
+                message: "Verification request not found",
+                statusCode: RESPONSE_CODES.BAD_REQUEST,
+                data: {}
+            })
+        }
+
+        if (
+            record.otp !== otp ||
+            !record.otpExpires ||
+            record.otpExpires < new Date()
+        ) {
+            return res.status(RESPONSE_CODES.BAD_REQUEST).json({
+                status: 0,
+                message: "Invalid or expired OTP",
                 statusCode: RESPONSE_CODES.BAD_REQUEST,
                 data: {}
             });
         }
 
-        if (user.wabaVerification.status === "VERIFIED") {
-            return res.status(RESPONSE_CODES.BAD_REQUEST).json({
-                status: 0,
-                message: "Whatsapp number already verified",
-                statusCode: RESPONSE_CODES.BAD_REQUEST,
-                data: {}
-            })
-        }
-
-        if (user.wabaVerification.otp !== otp) {
-            return res.status(RESPONSE_CODES.BAD_REQUEST).json({
-                status: 0,
-                message: "Invalid OTP",
-                statusCode: RESPONSE_CODES.BAD_REQUEST,
-                data: {}
-            })
-        }
-
-        if (user.wabaVerification.otpExpires < new Date()) {
-            return res.status(RESPONSE_CODES.BAD_REQUEST).json({
-                status: 0,
-                message: "OTP Expired",
-                statusCode: RESPONSE_CODES.BAD_REQUEST,
-                data: {}
-            })
-        }
-
         await prisma.wabaVerification.update({
-            where: { userId: user.id },
+            where: { userId },
             data: {
                 status: "VERIFIED",
                 otp: null,
-                otpExpires: null
+                otpExpires: null,
+                wabaPhoneId: process.env.PHONE_NUMBER_ID,
+                wabaWabaId: process.env.META_WABA_ID
             }
         });
 
         res.status(RESPONSE_CODES.GET).json({
             status: 1,
-            message: "Whatsapp number verified successfuly",
+            message: "Whatsapp number verified successfully",
             statusCode: RESPONSE_CODES.GET,
-            data: {
-                isWhatsappVerified: true
-            }
+            data: {}
         });
 
     } catch (error) {

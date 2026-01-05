@@ -32,8 +32,7 @@ router.post("/", async (req, res) => {
             body,
             header,
             footer,
-            buttons,
-            location
+            buttons
         } = req.body;
 
         const exists = await prisma.template.findFirst({
@@ -149,7 +148,6 @@ router.post("/", async (req, res) => {
                 }
             });
 
-
             components.push({
                 type: "BUTTONS",
                 buttons: metaButtons
@@ -168,7 +166,6 @@ router.post("/", async (req, res) => {
         } catch (err) {
             console.log("Meta submission failed:", err?.response?.data || err.message);
         }
-
 
         // Save to db
         const template = await prisma.$transaction(async (tx) => {

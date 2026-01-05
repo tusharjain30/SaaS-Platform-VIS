@@ -1,58 +1,49 @@
 const { z } = require("zod");
 
 const createSimpleBotSchema = z.object({
-    name: z.string().min(2, "Bot name is required"),
+  name: z.string().min(2, "Bot name is required"),
 
-    replyText: z.string().min(1).optional(),
+  bodyText: z.string().min(1, "Reply text is required"),
 
-    triggerType: z.enum([
-        "WELCOME",
-        "DEFAULT",
-        "IS",
-        "STARTS_WITH",
-        "ENDS_WITH",
-        "CONTAINS_WORD",
-        "CONTAINS",
-        "STOP_PROMOTIONAL",
-        "START_PROMOTIONAL",
-        "START_AI_BOT",
-        "STOP_AI_BOT",
-        "BUTTON",
-    ]),
+  triggerType: z.enum([
+    "DEFAULT",
+    "WELCOME",
+    "IS",
+    "STARTS_WITH",
+    "ENDS_WITH",
+    "CONTAINS_WORD",
+    "CONTAINS",
+    "STOP_PROMOTIONAL",
+    "START_PROMOTIONAL",
+    "START_AI_BOT",
+    "STOP_AI_BOT",
+  ]),
 
-    triggerValue: z.string().optional().nullable(),
+  triggerValue: z.string().nullable().optional(),
 
-    isActive: z.boolean().optional(),
+  isActive: z.boolean().optional(),
 }).superRefine((data, ctx) => {
+  // DEFAULT / WELCOME → triggerValue not allowed
+  if (
+    ["DEFAULT", "WELCOME"].includes(data.triggerType) &&
+    data.triggerValue
+  ) {
+    ctx.addIssue({
+      path: ["triggerValue"],
+      message: "Trigger value must be empty for DEFAULT/WELCOME trigger",
+    });
+  }
 
-    // SIMPLE reply must have text
-    if (!data.replyText) {
-        ctx.addIssue({
-            path: ["replyText"],
-            message: "Reply text is required for simple bot",
-        });
-    }
-
-    // DEFAULT / WELCOME rules
-    if (
-        !["DEFAULT", "WELCOME"].includes(data.triggerType) &&
-        !data.triggerValue
-    ) {
-        ctx.addIssue({
-            path: ["triggerValue"],
-            message: "Trigger value is required for this trigger type",
-        });
-    }
-
-    if (
-        ["DEFAULT", "WELCOME"].includes(data.triggerType) &&
-        data.triggerValue
-    ) {
-        ctx.addIssue({
-            path: ["triggerValue"],
-            message: "Trigger value must be empty for DEFAULT/WELCOME trigger",
-        });
-    }
+  // Other triggers → triggerValue required
+  if (
+    !["DEFAULT", "WELCOME"].includes(data.triggerType) &&
+    !data.triggerValue
+  ) {
+    ctx.addIssue({
+      path: ["triggerValue"],
+      message: "Trigger value is required for this trigger type",
+    });
+  }
 });
 
 module.exports = { createSimpleBotSchema };

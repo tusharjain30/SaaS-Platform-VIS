@@ -13,7 +13,7 @@ router.post("/", async (req, res) => {
 
         const {
             name,
-            replyText,
+            bodyText,
             triggerType,
             triggerValue,
             isActive = true,
@@ -75,7 +75,7 @@ router.post("/", async (req, res) => {
                     replyType: "SIMPLE",
                     triggerType,
                     triggerValue: triggerValue || null,
-                    bodyText: replyText,
+                    bodyText,
                     isActive
                 }
             });

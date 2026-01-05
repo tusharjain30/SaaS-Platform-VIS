@@ -9,7 +9,7 @@ const { verifyWhatsappOtpSchema } = require("../../../../schema/user/whatsapp/ve
 const submitNumberRoute = require("./submitNumber");
 const verifyWhatsappOtpRoute = require("./verifyWhatsappOtp");
 
-router.use("/submit-number", userAuth, validator(submitWhatsappNumberSchema, "body"), submitNumberRoute);
+router.use("/submit-whatsapp-number", userAuth, validator(submitWhatsappNumberSchema, "body"), submitNumberRoute);
 router.use("/verify-otp", userAuth, validator(verifyWhatsappOtpSchema, "body"), verifyWhatsappOtpRoute);
 
 module.exports = router;

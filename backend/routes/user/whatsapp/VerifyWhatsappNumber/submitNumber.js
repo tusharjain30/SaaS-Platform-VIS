@@ -4,59 +4,65 @@ const express = require("express");
 const router = express.Router();
 
 const RESPONSE_CODES = require("../../../../config/responseCode");
-const sendEmail = require("../../../../utils/sendEmail");
+
+const sendWhatsAppMessage = require("../../../../services/Meta/sendMessage");
+const { buildTextPayload } = require("../../../../services/Meta/payloadBuilders");
 
 router.post("/", async (req, res) => {
     try {
 
-        const user = req.user;
+        const userId = req.user.id;
         const { phone } = req.body;
 
-        if (user.wabaVerification?.status === "VERIFIED") {
+        const isAlreadyVerified = await prisma.wabaVerification.findFirst({
+            where: {
+                userId,
+                clientPhone: phone,
+                status: "VERIFIED"
+            }
+        });
+
+        if (isAlreadyVerified) {
             return res.status(RESPONSE_CODES.BAD_REQUEST).json({
                 status: 0,
-                message: "Whatsapp number already verified",
+                message: "Whatsapp number is already verified",
                 statusCode: RESPONSE_CODES.BAD_REQUEST,
                 data: {}
-            })
-        }
+            });
+        };
 
+        // Generate 6 digit OTP
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        const otpExpires = new Date(
-            Date.now() + 10 * 60 * 1000
-        );
 
-        // save otp in db
+        // Save / Update verification record
         await prisma.wabaVerification.upsert({
-            where: { userId: user.id },
+            where: { userId },
             update: {
                 clientPhone: phone,
                 otp,
-                otpExpires,
+                otpExpires: new Date(Date.now() + 5 * 60 * 1000),
                 status: "PENDING"
             },
             create: {
-                userId: user.id,
+                userId,
                 clientPhone: phone,
                 otp,
-                otpExpires,
+                otpExpires: new Date(Date.now() + 5 * 60 * 1000),
                 status: "PENDING"
             }
         });
 
-        await sendEmail(
-            user.email,
-            "WhatsApp Verification OTP",
-            `
-        <p>Your OTP for WhatsApp number verification is:</p>
-        <h2>${otp}</h2>
-        <p>This OTP is valid for 10 minutes.</p>
-      `
-        );
+        // Send OTP using your WABA number
+        await sendWhatsAppMessage({
+            phoneNumberId: process.env.PHONE_NUMBER_ID,
+            accessToken: process.env.WHATSAPP_ACCESS_TOKEN,
+            to: `91${phone}`,
+            payload: buildTextPayload(`Your WhatsApp verification OTP is ${otp}`)
+        });
 
         res.status(RESPONSE_CODES.GET).json({
             status: 1,
-            message: "OTP sent successfully for whatsapp  verification",
+            message: "OTP sent successfully",
             statusCode: RESPONSE_CODES.GET,
             data: {}
         });

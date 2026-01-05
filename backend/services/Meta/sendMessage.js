@@ -1,10 +1,12 @@
 const axios = require("axios");
 
 const sendWhatsAppMessage = async ({
+    phoneNumberId,
+    accessToken,
     to,
     payload
 }) => {
-    const url = `https://graph.facebook.com/${process.env.META_API_VERSION}/${process.env.PHONE_NUMBER_ID}/messages`;
+    const url = `https://graph.facebook.com/${process.env.META_API_VERSION}/${phoneNumberId}/messages`;
 
     try {
         const response = await axios.post(
@@ -21,7 +23,7 @@ const sendWhatsAppMessage = async ({
                 }
             }
         );
-
+        console.log(response);
         return response.data;
     } catch (error) {
         console.log(

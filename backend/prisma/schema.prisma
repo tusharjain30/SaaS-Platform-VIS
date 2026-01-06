@@ -138,26 +138,25 @@ model WabaVerification {
 }
 
 model MessageLog {
-  id            Int      @id @default(autoincrement())
-  userId        Int
-  to            String
+  id     Int    @id @default(autoincrement())
+  userId Int
+  to     String
 
   // Meta
-  metaMessageId String?  @unique
+  metaMessageId String? @unique
 
-  type          MessageType
-  direction     MessageDirection
+  type         MessageType
+  direction    MessageDirection
   templateName String?
-  payload       Json
-  status        MessageStatus @default(PENDING)
+  payload      Json
+  status       MessageStatus    @default(PENDING)
 
-  createdAt     DateTime @default(now())
+  createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
 
   @@index([userId, direction])
 }
-
 
 model Template {
   id Int @id @default(autoincrement())
@@ -486,20 +485,66 @@ model AccessToken {
 }
 
 model Contact {
-  id    Int    @id @default(autoincrement())
-  phone String @unique
-
-  firstName String?
-  lastName  String?
-  email     String?
-  country   String?
-  language  String?
-
-  promotionalOptIn Boolean @default(true)
-  aiEnabled        Boolean @default(false)
+  id           Int     @id @default(autoincrement())
+  userId       Int
+  firstName    String?
+  lastName     String?
+  country      String?
+  phone        String  @unique
+  languageCode String?
+  email        String?
+  isOptedOut   Boolean @default(false)
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  isDeleted Boolean @default(false)
+
+  groups       ContactGroupMap[]
+  customValues ContactCustomValue[]
+}
+
+model ContactGroup {
+  id          Int               @id @default(autoincrement())
+  userId      Int
+  title       String
+  description String?
+  contacts    ContactGroupMap[]
+
+  createdAt DateTime @default(now())
+}
+
+model ContactGroupMap {
+  id Int @id @default(autoincrement())
+
+  contactId Int
+  groupId   Int
+
+  contact Contact      @relation(fields: [contactId], references: [id])
+  group   ContactGroup @relation(fields: [groupId], references: [id])
+
+  @@unique([contactId, groupId])
+}
+
+model ContactCustomField {
+  id     Int                  @id @default(autoincrement())
+  userId Int
+  name   String // "Email"
+  key    String // "email"
+  type   String // "text" | "email" | "number" | "date"
+  values ContactCustomValue[]
+
+  @@unique([userId, key])
+}
+
+model ContactCustomValue {
+  id        Int    @id @default(autoincrement())
+  contactId Int
+  fieldId   Int
+  value     String
+
+  contact Contact            @relation(fields: [contactId], references: [id])
+  field   ContactCustomField @relation(fields: [fieldId], references: [id])
+
+  @@unique([contactId, fieldId])
 }
 
 enum TemplateCategory {

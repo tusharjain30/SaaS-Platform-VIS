@@ -5,78 +5,83 @@ const router = express.Router();
 const { PrismaClient } = require("../../../../generated/prisma/client");
 const prisma = new PrismaClient();
 
-router.post("/groups", async (req, res) => {
+router.post("/", async (req, res) => {
     try {
         const userId = req.user.id;
-        let { groupIds, contactId } = req.body;
-        contactId = Number(contactId);
+        const { contactIds, groupIds } = req.body;
 
-        if (!contactId || !Array.isArray(groupIds) || groupIds.length === 0) {
-            return res.status(RESPONSE_CODES.BAD_REQUEST).json({
-                status: 0,
-                message: "contactId and groupIds[] are required",
-                statusCode: RESPONSE_CODES.BAD_REQUEST,
-                data: {}
-            });
-        }
-
-        // Check contact
-        const contact = await prisma.contact.findFirst({
+        /* ---------------- VERIFY CONTACTS ---------------- */
+        const contacts = await prisma.contact.findMany({
             where: {
-                id: contactId,
+                id: { in: contactIds },
                 userId,
                 isDeleted: false
-            }
+            },
+            select: { id: true }
         });
 
-        if (!contact) {
+        if (contacts.length !== contactIds.length) {
             return res.status(RESPONSE_CODES.BAD_REQUEST).json({
                 status: 0,
-                message: "Contact not found",
+                message: "Some contacts not found",
                 statusCode: RESPONSE_CODES.BAD_REQUEST,
                 data: {}
             });
         }
 
-        // Check groups
+        /* ---------------- VERIFY GROUPS ---------------- */
         const groups = await prisma.contactGroup.findMany({
             where: {
                 id: { in: groupIds },
-                userId
-            }
+                userId,
+                isDeleted: false
+            },
+            select: { id: true }
         });
 
         if (groups.length !== groupIds.length) {
             return res.status(RESPONSE_CODES.BAD_REQUEST).json({
                 status: 0,
-                message: "One or more groups not found",
+                message: "Some groups not found",
                 statusCode: RESPONSE_CODES.BAD_REQUEST,
                 data: {}
             });
         }
 
-        // Create mappings
+        /* ---------------- PREPARE BULK INSERT ---------------- */
+        const rows = [];
+
+        for (const cId of contactIds) {
+            for (const gId of groupIds) {
+                rows.push({
+                    contactId: cId,
+                    groupId: gId
+                });
+            }
+        }
+
+        /* ---------------- BULK INSERT (SKIP DUPLICATES) ---------------- */
         await prisma.contactGroupMap.createMany({
-            data: groupIds.map(groupId => ({
-                contactId,
-                groupId
-            })),
+            data: rows,
             skipDuplicates: true
         });
 
         res.status(RESPONSE_CODES.GET).json({
             status: 1,
-            message: "Groups assigned successfully",
+            message: "Groups assigned to selected contacts successfully",
             statusCode: RESPONSE_CODES.GET,
-            data: {}
+            data: {
+                contactsCount: contactIds.length,
+                groupsCount: groupIds.length
+            }
         });
 
-    } catch (err) {
-        console.error("Assign group error:", err);
+    } catch (error) {
+        console.error("Assign groups error:", error);
         res.status(RESPONSE_CODES.ERROR).json({
             status: 0,
             message: "Internal server error",
-            status: RESPONSE_CODES.ERROR,
+            statusCode: RESPONSE_CODES.ERROR,
             data: {}
         });
     }

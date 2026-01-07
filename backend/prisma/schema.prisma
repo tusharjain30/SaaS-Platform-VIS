@@ -496,7 +496,7 @@ model Contact {
   isOptedOut   Boolean @default(false)
 
   createdAt DateTime @default(now())
-  isDeleted Boolean @default(false)
+  isDeleted Boolean  @default(false)
 
   groups       ContactGroupMap[]
   customValues ContactCustomValue[]
@@ -508,6 +508,10 @@ model ContactGroup {
   title       String
   description String?
   contacts    ContactGroupMap[]
+
+  isArchived Boolean  @default(false)
+  isDeleted  Boolean  @default(false)
+  updatedAt  DateTime @updatedAt
 
   createdAt DateTime @default(now())
 }

@@ -8,17 +8,7 @@ const prisma = new PrismaClient();
 router.get("/", async (req, res) => {
     try {
         let { contactId } = req.body;
-        contactId = Number(contactId);
         const userId = req.user.id;
-
-        if (!contactId) {
-            return res.status(RESPONSE_CODES.BAD_REQUEST).json({
-                status: 0,
-                message: "Invalid contact id",
-                statusCode: RESPONSE_CODES.BAD_REQUEST,
-                data: {}
-            });
-        }
 
         const contact = await prisma.contact.findFirst({
             where: {

@@ -10,32 +10,65 @@ router.delete("/", async (req, res) => {
         const userId = req.user.id;
         const { contactIds } = req.body;
 
-        if (!Array.isArray(contactIds) || contactIds.length === 0) {
-            return res.status(RESPONSE_CODES.BAD_REQUEST).json({
+        // Ensure numbers
+        const ids = contactIds.map(Number);
+
+        /* ---------- FIND USER CONTACTS ONLY ---------- */
+        const contacts = await prisma.contact.findMany({
+            where: {
+                id: { in: ids },
+                userId,
+                isDeleted: false
+            },
+            select: { id: true }
+        });
+
+        if (contacts.length === 0) {
+            return res.status(RESPONSE_CODES.NOT_FOUND).json({
                 status: 0,
-                message: "contactIds array is required",
-                statusCode: RESPONSE_CODES.BAD_REQUEST,
+                message: "No valid contacts found to delete",
+                statusCode: RESPONSE_CODES.NOT_FOUND,
                 data: {}
             });
         }
 
-        // Only delete user's own contacts
-        const result = await prisma.contact.updateMany({
-            where: {
-                id: { in: contactIds },
-                userId,
-                isDeleted: false
-            },
-            data: {
-                isDeleted: true
-            }
+        const validIds = contacts.map(c => c.id);
+
+        /* ---------- TRANSACTION ---------- */
+        await prisma.$transaction(async (tx) => {
+
+            // Delete group mappings
+            await tx.contactGroupMap.deleteMany({
+                where: {
+                    contactId: { in: validIds }
+                }
+            });
+
+            // Delete custom field values
+            await tx.contactCustomValue.deleteMany({
+                where: {
+                    contactId: { in: validIds }
+                }
+            });
+
+            // Soft delete contacts
+            await tx.contact.updateMany({
+                where: {
+                    id: { in: validIds }
+                },
+                data: {
+                    isDeleted: true
+                }
+            });
         });
 
         res.status(RESPONSE_CODES.GET).json({
             status: 1,
             message: "Contacts deleted successfully",
             statusCode: RESPONSE_CODES.GET,
-            data: { deletedCount: result.count }
+            data: {
+                deletedCount: validIds.length
+            }
         });
 
     } catch (err) {

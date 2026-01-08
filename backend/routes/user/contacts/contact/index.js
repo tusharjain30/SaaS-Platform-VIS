@@ -7,6 +7,9 @@ const validator = require("../../../../middleware/validator");
 const { createContactSchema } = require("../../../../schema/user/contacts/contact/createContact.schema");
 const { updateContactSchema } = require("../../../../schema/user/contacts/contact/updateContact.schema");
 const { assignGroupsToContactsSchema } = require("../../../../schema/user/contacts/contact/assignGroupsToContacts.schema");
+const { deleteContactSchema } = require("../../../../schema/user/contacts/contact/delete.schema");
+const { bulkDeleteContactsSchema } = require("../../../../schema/user/contacts/contact/bulkDelete.schema");
+const { detailContactSchema } = require("../../../../schema/user/contacts/contact/detail.schema");
 
 const createContactRoute = require("./createContact");
 const updateContactRoute = require("./updateContact");
@@ -19,10 +22,10 @@ const assignGroupsToContactsRoute = require("./assignGroupsToContacts");
 
 router.use("/create", userAuth, validator(createContactSchema, "body"), createContactRoute);
 router.use("/update", userAuth, validator(updateContactSchema, "body"), updateContactRoute);
-router.use("/detail", userAuth, contactDetailsRoute);
+router.use("/detail", validator(detailContactSchema, "body"), userAuth, contactDetailsRoute);
 router.use("/read", userAuth, readContactsRoute);
-router.use("/delete", userAuth, deleteContactsRoute);
-router.use("/bulk-delete", userAuth, bulkDeleteRoute);
+router.use("/delete", validator(deleteContactSchema, "body"), userAuth, deleteContactsRoute);
+router.use("/bulk-delete", validator(bulkDeleteContactsSchema, "body"), userAuth, bulkDeleteRoute);
 router.use("/import", userAuth, importContactsRoute);
 router.use("/assign-groups", userAuth, validator(assignGroupsToContactsSchema, "body"), assignGroupsToContactsRoute);
 

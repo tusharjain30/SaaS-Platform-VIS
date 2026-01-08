@@ -7,110 +7,177 @@ const prisma = new PrismaClient();
 
 router.post("/", async (req, res) => {
     try {
-
         const userId = req.user.id;
 
         const {
+            contactId,
             firstName,
             lastName,
             country,
-            phone,
             languageCode,
             email,
-            isOptedOut = false,
-            groups = [],
-            customFields = {}
+            isOptedOut,
+            groups,
+            customFields
         } = req.body;
 
-        // check duplicate phone
-        const exists = await prisma.contact.findFirst({
-            where: { userId, phone }
+        // Check contact exists
+        const contact = await prisma.contact.findFirst({
+            where: { id: contactId, userId, isDeleted: false }
         });
 
-        if (exists) {
+        if (!contact) {
+            return res.status(RESPONSE_CODES.NOT_FOUND).json({
+                status: 0,
+                message: "Contact not found",
+                statusCode: RESPONSE_CODES.NOT_FOUND,
+                data: {}
+            });
+        }
+
+        const result = await prisma.$transaction(async (tx) => {
+
+            /* ===========================
+               UPDATE MAIN CONTACT
+            ============================ */
+            await tx.contact.update({
+                where: { id: contactId },
+                data: {
+                    ...(firstName !== undefined && { firstName }),
+                    ...(lastName !== undefined && { lastName }),
+                    ...(country !== undefined && { country }),
+                    ...(languageCode !== undefined && { languageCode }),
+                    ...(email !== undefined && { email }),
+                    ...(isOptedOut !== undefined && { isOptedOut })
+                }
+            });
+
+            /* ===========================
+               UPDATE GROUPS (REPLACE)
+            ============================ */
+            if (groups !== undefined) {
+                if (!Array.isArray(groups)) {
+                    throw new Error("GROUPS_MUST_BE_ARRAY");
+                }
+
+                if (groups.length) {
+                    const existingGroups = await tx.contactGroup.findMany({
+                        where: {
+                            userId,
+                            id: { in: groups },
+                            isDeleted: false
+                        },
+                        select: { id: true }
+                    });
+
+                    const validIds = existingGroups.map(g => g.id);
+                    const invalid = groups.filter(id => !validIds.includes(id));
+
+                    if (invalid.length) {
+                        throw new Error("INVALID_GROUP_IDS:" + invalid.join(","));
+                    }
+
+                    await tx.contactGroupMap.deleteMany({
+                        where: { contactId }
+                    });
+
+                    await tx.contactGroupMap.createMany({
+                        data: validIds.map(gid => ({
+                            contactId,
+                            groupId: gid
+                        }))
+                    });
+
+                } else {
+                    // If empty array → remove all groups
+                    await tx.contactGroupMap.deleteMany({
+                        where: { contactId }
+                    });
+                }
+            }
+
+            /* ===========================
+               UPDATE CUSTOM FIELDS (REPLACE)
+            ============================ */
+            if (customFields !== undefined) {
+                if (typeof customFields !== "object") {
+                    throw new Error("CUSTOM_FIELDS_INVALID");
+                }
+
+                await tx.contactCustomValue.deleteMany({
+                    where: { contactId }
+                });
+
+                const keys = Object.keys(customFields || {});
+                if (keys.length) {
+                    const fields = await tx.contactCustomField.findMany({
+                        where: {
+                            userId,
+                            key: { in: keys },
+                            isDeleted: false
+                        }
+                    });
+
+                    const fieldMap = new Map(fields.map(f => [f.key, f.id]));
+
+                    const invalidKeys = keys.filter(k => !fieldMap.has(k));
+                    if (invalidKeys.length) {
+                        throw new Error("INVALID_CUSTOM_FIELDS:" + invalidKeys.join(","));
+                    }
+
+                    await tx.contactCustomValue.createMany({
+                        data: keys.map(key => ({
+                            contactId,
+                            fieldId: fieldMap.get(key),
+                            value: String(customFields[key])
+                        }))
+                    });
+                }
+            }
+
+            /* ===========================
+               RETURN FULL UPDATED CONTACT
+            ============================ */
+            await tx.contact.findFirst({
+                where: { id: contactId },
+                include: {
+                    groups: true,
+                    customValues: {
+                        include: {
+                            field: true
+                        }
+                    }
+                }
+            });
+        });
+
+        res.status(RESPONSE_CODES.GET).json({
+            status: 1,
+            message: "Contact updated successfully",
+            statusCode: RESPONSE_CODES.GET,
+            data: result
+        });
+
+    } catch (error) {
+
+        if (error.message === "GROUPS_MUST_BE_ARRAY") {
             return res.status(RESPONSE_CODES.BAD_REQUEST).json({
                 status: 0,
-                message: "Contact already exists",
+                message: "groups must be an array",
                 statusCode: RESPONSE_CODES.BAD_REQUEST,
                 data: {}
             });
         }
 
-        const contact = await prisma.$transaction(async (tx) => {
-
-            // Create contact
-            const created = await tx.contact.create({
-                data: {
-                    userId,
-                    firstName,
-                    lastName,
-                    country,
-                    phone,
-                    languageCode,
-                    email,
-                    isOptedOut
-                }
+        if (error.message === "CUSTOM_FIELDS_INVALID") {
+            return res.status(RESPONSE_CODES.BAD_REQUEST).json({
+                status: 0,
+                message: "customFields must be an object",
+                statusCode: RESPONSE_CODES.BAD_REQUEST,
+                data: {}
             });
+        }
 
-            // Validate group IDs
-            if (groups.length) {
-                const existingGroups = await tx.contactGroup.findMany({
-                    where: {
-                        userId,
-                        id: { in: groups }
-                    },
-                    select: { id: true }
-                });
-
-                const existingGroupIds = existingGroups.map(g => g.id);
-
-                const invalidGroupIds = groups.filter(
-                    id => !existingGroupIds.includes(id)
-                );
-
-                if (invalidGroupIds.length) {
-                    throw new Error("INVALID_GROUP_IDS:" + invalidGroupIds.join(","));
-                }
-
-                // Attach groups
-                await tx.contactGroupMap.createMany({
-                    data: existingGroupIds.map(gid => ({
-                        contactId: created.id,
-                        groupId: gid
-                    })),
-                    skipDuplicates: true
-                });
-            }
-
-            // Handle custom fields
-            for (const key of Object.keys(customFields)) {
-
-                const field = await tx.contactCustomField.findFirst({
-                    where: { userId, key }
-                });
-
-                if (!field) continue;
-
-                await tx.contactCustomValue.create({
-                    data: {
-                        contactId: created.id,
-                        fieldId: field.id,
-                        value: String(customFields[key])
-                    }
-                });
-            }
-
-            return created;
-        });
-
-        res.status(RESPONSE_CODES.POST).json({
-            status: 1,
-            message: "Contact created successfully",
-            statusCode: RESPONSE_CODES.POST,
-            data: contact
-        });
-
-    } catch (error) {
         if (error.message?.startsWith("INVALID_GROUP_IDS:")) {
             return res.status(RESPONSE_CODES.BAD_REQUEST).json({
                 status: 0,
@@ -121,7 +188,19 @@ router.post("/", async (req, res) => {
                 }
             });
         }
-        console.log("Create Contact Error:", error);
+
+        if (error.message?.startsWith("INVALID_CUSTOM_FIELDS:")) {
+            return res.status(RESPONSE_CODES.BAD_REQUEST).json({
+                status: 0,
+                message: "Some custom field keys are invalid",
+                statusCode: RESPONSE_CODES.BAD_REQUEST,
+                data: {
+                    invalidKeys: error.message.replace("INVALID_CUSTOM_FIELDS:", "").split(",")
+                }
+            });
+        }
+
+        console.error("Update contact error:", error);
         res.status(RESPONSE_CODES.ERROR).json({
             status: 0,
             message: "Internal server error",

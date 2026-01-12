@@ -7,7 +7,7 @@ const router = express.Router();
 router.post("/", async (req, res) => {
     try {
 
-        const userId = req.user.id;
+        const { userId } = req.auth;
         const { otp } = req.body;
 
         if (!otp) {

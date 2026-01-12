@@ -1,12 +1,10 @@
 const axios = require("axios");
 
 const sendWhatsAppMessage = async ({
-    phoneNumberId,
-    accessToken,
     to,
     payload
 }) => {
-    const url = `https://graph.facebook.com/${process.env.META_API_VERSION}/${phoneNumberId}/messages`;
+    const url = `https://graph.facebook.com/${process.env.META_API_VERSION}/${process.env.PHONE_NUMBER_ID}/messages`;
 
     try {
         const response = await axios.post(
@@ -18,7 +16,7 @@ const sendWhatsAppMessage = async ({
             },
             {
                 headers: {
-                    Authorization: `Bearer ${accessToken}`,
+                    Authorization: `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`,
                     "Content-Type": "application/json"
                 }
             }

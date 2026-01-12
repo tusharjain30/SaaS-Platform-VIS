@@ -3,7 +3,7 @@ const FormData = require("form-data");
 const fs = require("fs");
 const path = require("path");
 
-const uploadMediaToMeta = async ({ filePath, mimeType, phoneNumberId, accessToken }) => {
+const uploadMediaToMeta = async ({ filePath, mimeType }) => {
     try {
         const formData = new FormData();
 
@@ -11,11 +11,11 @@ const uploadMediaToMeta = async ({ filePath, mimeType, phoneNumberId, accessToke
         formData.append("type", mimeType);
         formData.append("messaging_product", "whatsapp");
 
-        const url = `https://graph.facebook.com/${process.env.META_API_VERSION}/${phoneNumberId}/media`;  // META_API_VERSION="v20.0"
+        const url = `https://graph.facebook.com/${process.env.META_API_VERSION}/${process.env.PHONE_NUMBER_ID}/media`;  // META_API_VERSION="v20.0"
 
         const response = await axios.post(url, formData, {
             headers: {
-                Authorization: `Bearer ${accessToken}`,
+                Authorization: `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`,
                 ...formData.getHeaders()
             }
         });

@@ -11,7 +11,7 @@ const { buildTextPayload } = require("../../../../services/Meta/payloadBuilders"
 router.post("/", async (req, res) => {
     try {
 
-        const userId = req.user.id;
+        const {userId} = req.auth;
         const { phone } = req.body;
 
         const isAlreadyVerified = await prisma.wabaVerification.findFirst({
@@ -54,8 +54,6 @@ router.post("/", async (req, res) => {
 
         // Send OTP using your WABA number
         await sendWhatsAppMessage({
-            phoneNumberId: process.env.PHONE_NUMBER_ID,
-            accessToken: process.env.WHATSAPP_ACCESS_TOKEN,
             to: `91${phone}`,
             payload: buildTextPayload(`Your WhatsApp verification OTP is ${otp}`)
         });

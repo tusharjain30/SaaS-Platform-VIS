@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 
 const adminAuth = require("../../../middleware/adminAuth");
-const userAuth = require("../../../middleware/userAuth");
+const requireAuth = require("../../../middleware/requireAuth");
 const checkPermission = require("../../../middleware/checkPermission");
 const validator = require("../../../middleware/validator");
 
@@ -32,6 +32,6 @@ router.use("/verify", adminAuth, checkPermission("VERIFY_CUSTOMER"), validator(c
 router.use("/delete", adminAuth, checkPermission("DELETE_CUSTOMER"), validator(deleteCustomerBodySchema, "body"), deleteRoute);
 router.use("/stats", adminAuth, checkPermission("VIEW_CUSTOMER_STATS"), statsRoute);
 router.use("/force-logout", adminAuth, checkPermission("FORCE_LOGOUT_CUSTOMER"), validator(customerForceLogoutSchema, "body"), forceLogoutRoute);
-router.use("/me", userAuth, profileRoute);
+router.use("/me", requireAuth, profileRoute);
 
 module.exports = router;

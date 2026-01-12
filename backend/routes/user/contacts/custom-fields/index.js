@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 
-const userAuth = require("../../../../middleware/userAuth");
+const requireAuth = require("../../../../middleware/requireAuth");
 const validator = require("../../../../middleware/validator");
 
 const { createCustomFieldSchema } = require("../../../../schema/user/contacts/custom-fields/create.schema");
@@ -16,10 +16,10 @@ const detailRoute = require("./detail");
 const listRoute = require("./list");
 const deleteRoute = require("./delete");
 
-router.use("/create", userAuth, validator(createCustomFieldSchema, "body"), createRoute);
-router.use("/update", userAuth, validator(updateCustomFieldSchema, "body"), updateRoute);
-router.use("/detail", userAuth, validator(customFieldDetailSchema, "body"), detailRoute);
-router.use("/list", userAuth, validator(listCustomFieldsSchema, "query"), listRoute);
-router.use("/delete", userAuth, validator(deleteCustomFieldSchema, "body"), deleteRoute);
+router.use("/create", requireAuth, validator(createCustomFieldSchema, "body"), createRoute);
+router.use("/update", requireAuth, validator(updateCustomFieldSchema, "body"), updateRoute);
+router.use("/detail", requireAuth, validator(customFieldDetailSchema, "body"), detailRoute);
+router.use("/list", requireAuth, validator(listCustomFieldsSchema, "query"), listRoute);
+router.use("/delete", requireAuth, validator(deleteCustomFieldSchema, "body"), deleteRoute);
 
 module.exports = router;

@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 
-const userAuth = require("../../../../middleware/userAuth");
+const requireAuth = require("../../../../middleware/requireAuth");
 const validator = require("../../../../middleware/validator");
 const { submitWhatsappNumberSchema } = require("../../../../schema/user/whatsapp/verifyWhatsappNumberSchema/submitNumber.schema");
 const { verifyWhatsappOtpSchema } = require("../../../../schema/user/whatsapp/verifyWhatsappNumberSchema/verifyWhatsappOtp.schema");
@@ -9,7 +9,7 @@ const { verifyWhatsappOtpSchema } = require("../../../../schema/user/whatsapp/ve
 const submitNumberRoute = require("./submitNumber");
 const verifyWhatsappOtpRoute = require("./verifyWhatsappOtp");
 
-router.use("/submit-whatsapp-number", userAuth, validator(submitWhatsappNumberSchema, "body"), submitNumberRoute);
-router.use("/verify-otp", userAuth, validator(verifyWhatsappOtpSchema, "body"), verifyWhatsappOtpRoute);
+router.use("/submit-whatsapp-number", requireAuth, validator(submitWhatsappNumberSchema, "body"), submitNumberRoute);
+router.use("/verify-otp", requireAuth, validator(verifyWhatsappOtpSchema, "body"), verifyWhatsappOtpRoute);
 
 module.exports = router;

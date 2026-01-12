@@ -9,101 +9,142 @@ const prisma = new PrismaClient();
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 
-const sendEmail = require("../../../utils/sendEmail");
-
 router.post("/", async (req, res) => {
     try {
 
-        const { email, password, rememberMe } = req.body;
+        const { identifier, password, rememberMe } = req.body;
 
-        const user = await prisma.user.findUnique({
-            where: { email },
-            include: { role: true }
+        // Try Admin Login First
+        const admin = await prisma.admin.findFirst({
+            where: {
+                isDeleted: false,
+                OR: [
+                    { email: identifier },
+                    { userName: identifier },
+                    { phone: identifier },
+                ],
+            },
+            include: {
+                role: true,
+            },
         });
 
-        if (!user) {
-            return res.status(RESPONSE_CODES.BAD_REQUEST).json({
-                status: 0,
-                message: "Invalid email or Password",
-                statusCode: RESPONSE_CODES.BAD_REQUEST,
-                data: {}
-            })
-        }
+        if (admin) {
+            const match = await bcrypt.compare(password, admin.password);
+            if (!match) {
+                return res.status(RESPONSE_CODES.BAD_REQUEST).json({
+                    status: 0,
+                    message: "Invalid credentials",
+                    statusCode: RESPONSE_CODES.BAD_REQUEST,
+                    data: {}
+                });
+            }
 
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) {
-            return res.status(RESPONSE_CODES.BAD_REQUEST).json({
-                status: 0,
-                message: "Invalid email or Password",
-                statusCode: RESPONSE_CODES.BAD_REQUEST,
-                data: {}
-            })
-        }
+            if (!admin.isActive) {
+                return res.status(RESPONSE_CODES.FORBIDDEN).json({
+                    status: 0,
+                    message: "Admin account is disabled",
+                    statusCode: RESPONSE_CODES.FORBIDDEN,
+                    data: {}
+                });
+            }
 
-        // If user not verified, Send OTP
-        if (!user.isVerified) {
-            const otp = Math.floor(100000 + Math.random() * 900000).toString();
-            const otpExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 mins;
+            const payload = {
+                userType: "ADMIN",
+                adminId: admin.id,
+                role: admin.role?.roleType,
+                tokenVersion: admin.tokenVersion,
+            };
 
-            await prisma.user.update({
-                where: { id: user.id },
-                data: {
-                    otp,
-                    otpExpires
-                }
+            const expiresIn = rememberMe ? "30d" : "1d";
+
+            const token = jwt.sign(payload, process.env.JWT_SECRET, {
+                expiresIn,
             });
 
-            await sendEmail(
-                user.email,
-                "Your OTP for Verification",
-                `<h2>Your OTP is: <b>${otp}</b></h2>`
-            );
+            const { password: _, ...safeAdmin } = admin;
 
             return res.status(RESPONSE_CODES.GET).json({
                 status: 1,
-                message: "OTP sent to email, Please verify",
+                message: "Login successful",
                 statusCode: RESPONSE_CODES.GET,
                 data: {
-                    needVerification: true,
-                    email: user.email,
-                    rememberMe
-                }
+                    token,
+                    expiresIn,
+                    userType: "ADMIN",
+                    user: safeAdmin,
+                },
+            });
+
+        } else {
+            // Try Customer User Login
+            const user = await prisma.user.findFirst({
+                where: {
+                    isDeleted: false,
+                    OR: [
+                        { email: identifier },
+                        { userName: identifier },
+                        { phone: identifier },
+                    ],
+                },
+                include: { role: true, account: true },
+            });
+
+            if (!user || !(await bcrypt.compare(password, user.password))) {
+                return res.status(RESPONSE_CODES.BAD_REQUEST).json({
+                    status: 0,
+                    message: "Invalid credentials",
+                    statusCode: RESPONSE_CODES.BAD_REQUEST,
+                    data: {}
+                });
+            }
+
+            if (!user.isActive) {
+                return res.status(RESPONSE_CODES.FORBIDDEN).json({
+                    status: 0,
+                    message: "Account disabled",
+                    statusCode: RESPONSE_CODES.FORBIDDEN,
+                    data: {}
+                });
+            }
+
+            const tokenPayload = {
+                userType: "USER",
+                userId: user.id,
+                accountId: user.accountId,
+                role: user.role?.roleType,
+                tokenVersion: user.tokenVersion,
+            };
+
+            const expiresIn = rememberMe ? "30d" : "1d";
+
+            const token = jwt.sign(tokenPayload, process.env.USER_JWT_SECRET, {
+                expiresIn,
+            });
+
+            const { password: _, ...safeUser } = user;
+
+            return res.status(RESPONSE_CODES.GET).json({
+                status: 1,
+                message: "Login successful",
+                statusCode: RESPONSE_CODES.GET,
+                data: {
+                    token,
+                    expiresIn,
+                    userType: "USER",
+                    user: safeUser,
+                },
             });
         }
 
-        // If already verified, Generate JWT token
-        const expiresIn = rememberMe ? process.env.USER_JWT_EXPIRATION : "7d";
-
-        const token = jwt.sign(
-            {
-                userId: user.id,
-                roleType: user.role?.roleType || "CUSTOMER_USER",
-                tokenVersion: user.tokenVersion,
-            },
-            process.env.USER_JWT_SECRET,
-            { expiresIn }
-        );
-
-        const { password: _, otp: __, otpExpires: ___, ...safeUser } = user;
-
-        res.status(RESPONSE_CODES.GET).json({
-            status: 1,
-            message: "Login Successful",
-            statusCode: RESPONSE_CODES.GET,
-            data: {
-                user: safeUser,
-                token,
-                expiresIn
-            }
-        });
-
     } catch (error) {
+        console.log("LOGIN ERROR:", error);
         res.status(RESPONSE_CODES.ERROR).json({
-            status: 1,
+            status: 0,
             message: "Internal server error",
             statusCode: RESPONSE_CODES.ERROR,
             data: {}
-        })
+        });
     }
 });
 

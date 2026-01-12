@@ -19,7 +19,8 @@ model Admin {
   userName  String?  @unique
   email     String   @unique
   phone     String   @unique
-  name      String
+  firstName String
+  lastName  String
   image     String?
   password  String
   createdAt DateTime @default(now())
@@ -85,9 +86,10 @@ model RolePermission {
 
 model User {
   id        Int      @id @default(autoincrement())
-  name      String
-  userName  String?  @unique
-  email     String?  @unique
+  firstName String
+  lastName  String
+  userName  String   @unique
+  email     String   @unique
   phone     String   @unique
   password  String
   image     String?
@@ -113,11 +115,36 @@ model User {
   wabaVerification WabaVerification?
   templates        Template[]
   bots             Bot[]
-  subscriptions    Subscription[]
   messageLogs      MessageLog[]
   accessTokens     AccessToken[]
+  Contact          Contact[]
+  ContactGroup     ContactGroup[]
+
+  accountId Int
+  account   CustomerAccount @relation(fields: [accountId], references: [id])
 
   @@index([isActive, isDeleted])
+}
+
+model CustomerAccount {
+  id          Int    @id @default(autoincrement())
+  companyName String
+
+  isActive  Boolean @default(true)
+  isDeleted Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users              User[]
+  templates          Template[]
+  bots               Bot[]
+  contacts           Contact[]
+  contactGroups      ContactGroup[]
+  subscriptions      Subscription[]
+  messageLogs        MessageLog[]
+  BotSession         BotSession[]
+  ContactCustomField ContactCustomField[]
 }
 
 model WabaVerification {
@@ -138,9 +165,14 @@ model WabaVerification {
 }
 
 model MessageLog {
-  id     Int    @id @default(autoincrement())
-  userId Int
-  to     String
+  id        Int             @id @default(autoincrement())
+  accountId Int
+  account   CustomerAccount @relation(fields: [accountId], references: [id])
+
+  sentByUserId Int?
+  sentByUser   User? @relation(fields: [sentByUserId], references: [id])
+
+  to String
 
   // Meta
   metaMessageId String? @unique
@@ -153,17 +185,18 @@ model MessageLog {
 
   createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id])
-
-  @@index([userId, direction])
+  @@index([accountId, direction])
 }
 
 model Template {
   id Int @id @default(autoincrement())
 
-  // Relations
-  user   User @relation(fields: [userId], references: [id])
-  userId Int
+  accountId Int
+  account   CustomerAccount @relation(fields: [accountId], references: [id])
+
+  // optional audit
+  createdByUserId Int?
+  createdByUser   User? @relation(fields: [createdByUserId], references: [id])
 
   // Template Core
   name     String
@@ -171,8 +204,7 @@ model Template {
   language String           @default("en_US")
 
   // Text content
-  body      String
-  variables Json?
+  body String
 
   // Component-level fields (Flexible JSON)
   header     Json?
@@ -199,14 +231,14 @@ model Template {
   updatedAt DateTime @updatedAt
 
   // Prevent duplicate templates per user
-  @@unique([userId, name, language])
+  @@unique([accountId, name, language])
   @@index([status, isActive, isDeleted])
 }
 
 model Bot {
-  id     Int  @id @default(autoincrement())
-  userId Int
-  user   User @relation(fields: [userId], references: [id])
+  id              Int   @id @default(autoincrement())
+  createdByUserId Int?
+  createdByUser   User? @relation(fields: [createdByUserId], references: [id])
 
   name         String
   botType      BotType        @default(SIMPLE)
@@ -228,7 +260,10 @@ model Bot {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([userId, botType, triggerType, isActive])
+  accountId Int
+  account   CustomerAccount @relation(fields: [accountId], references: [id])
+
+  @@index([accountId, botType, triggerType, isActive])
 }
 
 model BotReply {
@@ -361,8 +396,11 @@ model BotReplyListRow {
 }
 
 model BotSession {
-  id      Int    @id @default(autoincrement())
-  userId  Int
+  id Int @id @default(autoincrement())
+
+  accountId Int
+  account   CustomerAccount @relation(fields: [accountId], references: [id])
+
   contact String // customer phone
   botId   Int
 
@@ -385,7 +423,7 @@ model BotSession {
 
   bot Bot @relation(fields: [botId], references: [id])
 
-  @@unique([userId, botId, contact, isActive])
+  @@unique([accountId, botId, contact, isActive])
 }
 
 model BotFlow {
@@ -451,18 +489,17 @@ model Plan {
 model Subscription {
   id Int @id @default(autoincrement())
 
-  userId Int
-  planId Int
+  accountId Int
+  account   CustomerAccount @relation(fields: [accountId], references: [id])
+  planId    Int
+  plan      Plan            @relation(fields: [planId], references: [id])
 
   startDate DateTime  @default(now())
   endDate   DateTime?
 
   isActive Boolean @default(true)
 
-  user User @relation(fields: [userId], references: [id])
-  plan Plan @relation(fields: [planId], references: [id])
-
-  @@index([userId, isActive])
+  @@index([accountId, isActive])
 }
 
 model AccessToken {
@@ -485,12 +522,17 @@ model AccessToken {
 }
 
 model Contact {
-  id           Int     @id @default(autoincrement())
-  userId       Int
+  id        Int             @id @default(autoincrement())
+  accountId Int
+  account   CustomerAccount @relation(fields: [accountId], references: [id])
+
+  createdByUserId Int?
+  createdByUser   User? @relation(fields: [createdByUserId], references: [id])
+
   firstName    String?
   lastName     String?
   country      String?
-  phone        String  @unique
+  phone        String
   languageCode String?
   email        String?
   isOptedOut   Boolean @default(false)
@@ -501,14 +543,21 @@ model Contact {
 
   groups       ContactGroupMap[]
   customValues ContactCustomValue[]
+
+  @@unique([accountId, phone])
 }
 
 model ContactGroup {
   id          Int               @id @default(autoincrement())
-  userId      Int
   title       String
   description String?
   contacts    ContactGroupMap[]
+
+  accountId Int
+  account   CustomerAccount @relation(fields: [accountId], references: [id])
+
+  createdByUserId Int?
+  createdByUser   User? @relation(fields: [createdByUserId], references: [id])
 
   isArchived Boolean  @default(false)
   isDeleted  Boolean  @default(false)
@@ -530,8 +579,11 @@ model ContactGroupMap {
 }
 
 model ContactCustomField {
-  id     Int                  @id @default(autoincrement())
-  userId Int
+  id Int @id @default(autoincrement())
+
+  accountId Int
+  account   CustomerAccount @relation(fields: [accountId], references: [id])
+
   name   String // "Email"
   key    String // "email"
   type   String // "text" | "email" | "number" | "date"
@@ -542,7 +594,7 @@ model ContactCustomField {
 
   createdAt DateTime @default(now())
 
-  @@unique([userId, key])
+  @@unique([accountId, key])
 }
 
 model ContactCustomValue {
@@ -596,7 +648,8 @@ enum VerificationStatus {
 enum RoleType {
   SYSTEM_ADMIN // Super Admin
   INTERNAL_ADMIN // HR, Manager, Sub Admin, Support, etc.
-  CUSTOMER_USER // Customer using your platform
+  CUSTOMER_OWNER // Customer using your platform
+  CUSTOMER_AGENT
 }
 
 enum ServiceType {

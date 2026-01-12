@@ -3,7 +3,7 @@ const router = express.Router();
 
 const validator = require("../../../../middleware/validator");
 const serviceAuth = require("../../../../middleware/serviceAuth");
-// const userAuth = require("../../../../middleware/userAuth");
+// const requireAuth = require("../../../../middleware/requireAuth");
 const parseJSONFields = require("../../../../middleware/parseJSONFields");
 const upload = require("../../../../middleware/multerUpload");
 

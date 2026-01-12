@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 
-const userAuth = require("../../../../middleware/userAuth");
+const requireAuth = require("../../../../middleware/requireAuth");
 const validator = require("../../../../middleware/validator");
 
 const { createContactSchema } = require("../../../../schema/user/contacts/contact/createContact.schema");
@@ -20,13 +20,13 @@ const bulkDeleteRoute = require("./bulkDelete");
 const importContactsRoute = require("./importContacts");
 const assignGroupsToContactsRoute = require("./assignGroupsToContacts");
 
-router.use("/create", userAuth, validator(createContactSchema, "body"), createContactRoute);
-router.use("/update", userAuth, validator(updateContactSchema, "body"), updateContactRoute);
-router.use("/detail", validator(detailContactSchema, "body"), userAuth, contactDetailsRoute);
-router.use("/read", userAuth, readContactsRoute);
-router.use("/delete", validator(deleteContactSchema, "body"), userAuth, deleteContactsRoute);
-router.use("/bulk-delete", validator(bulkDeleteContactsSchema, "body"), userAuth, bulkDeleteRoute);
-router.use("/import", userAuth, importContactsRoute);
-router.use("/assign-groups", userAuth, validator(assignGroupsToContactsSchema, "body"), assignGroupsToContactsRoute);
+router.use("/create", requireAuth, validator(createContactSchema, "body"), createContactRoute);
+router.use("/update", requireAuth, validator(updateContactSchema, "body"), updateContactRoute);
+router.use("/detail", validator(detailContactSchema, "body"), requireAuth, contactDetailsRoute);
+router.use("/read", requireAuth, readContactsRoute);
+router.use("/delete", validator(deleteContactSchema, "body"), requireAuth, deleteContactsRoute);
+router.use("/bulk-delete", validator(bulkDeleteContactsSchema, "body"), requireAuth, bulkDeleteRoute);
+router.use("/import", requireAuth, importContactsRoute);
+router.use("/assign-groups", requireAuth, validator(assignGroupsToContactsSchema, "body"), assignGroupsToContactsRoute);
 
 module.exports = router;

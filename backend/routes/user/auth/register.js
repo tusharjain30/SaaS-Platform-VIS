@@ -11,74 +11,83 @@ const bcrypt = require("bcrypt");
 router.post("/", async (req, res) => {
     try {
 
-        const { name, email, phone, password, userName } = req.body;
+        const {
+            companyName,
+            firstName,
+            lastName,
+            email,
+            phone,
+            password,
+            userName
+        } = req.body;
 
         const existingUser = await prisma.user.findFirst({
             where: {
-                OR: [{ email }, { phone }]
-            }
+                OR: [
+                    { email },
+                    { phone },
+                    { userName }
+                ],
+            },
         });
 
         if (existingUser) {
             return res.status(RESPONSE_CODES.ALREADY_EXIST).json({
                 status: 0,
-                message: "Email or Phone already exists",
+                message: "Email, Phone, Username already exists",
                 statusCode: RESPONSE_CODES.ALREADY_EXIST,
                 data: {}
             })
         }
 
-        if (userName) {
-            const exists = await prisma.user.findFirst({
-                where: {
-                    userName,
-                    isDeleted: false,
-                },
-            });
-
-            if (exists) {
-                return res.status(RESPONSE_CODES.ALREADY_EXIST).json({
-                    status: 0,
-                    message: "Username already taken",
-                    statusCode: RESPONSE_CODES.ALREADY_EXIST,
-                    data: {}
-                });
-            }
-        }
-
         let role = await prisma.role.findFirst({
-            where: { roleType: "CUSTOMER_USER" }
+            where: { roleType: "CUSTOMER_OWNER" }
         });
 
         if (!role) {
             role = await prisma.role.create({
                 data: {
-                    name: "CUSTOMER_USER",
-                    roleType: "CUSTOMER_USER"
+                    name: "CUSTOMER_OWNER",
+                    roleType: "CUSTOMER_OWNER"
                 }
             });
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        const newUser = await prisma.user.create({
-            data: {
-                name,
-                email,
-                phone,
-                password: hashedPassword,
-                roleId: role.id,
-                userName: userName || null,
-            }
+        const result = await prisma.$transaction(async (tx) => {
+            const account = await tx.customerAccount.create({
+                data: {
+                    companyName,
+                },
+            });
+
+            const user = await tx.user.create({
+                data: {
+                    firstName,
+                    lastName,
+                    email,
+                    phone,
+                    userName,
+                    password: hashedPassword,
+                    roleId: role.id,
+                    accountId: account.id,
+                },
+            });
+
+            return { account, user };
         });
 
-        const { password: _, ...safeUser } = newUser;
+        const { password: _, ...safeUser } = result.user;
 
         res.status(RESPONSE_CODES.POST).json({
             status: 1,
             message: "User registered successfully",
             statusCode: RESPONSE_CODES.POST,
-            data: safeUser
+            data: {
+                account: result.account,
+                owner: safeUser
+            },
         });
 
     } catch (error) {

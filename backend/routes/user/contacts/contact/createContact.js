@@ -7,13 +7,13 @@ const prisma = new PrismaClient();
 
 router.post("/", async (req, res) => {
     try {
-        const userId = req.user.id;
+        const { userId, accountId } = req.auth;
 
         const {
-            contactId,
             firstName,
             lastName,
             country,
+            phone,
             languageCode,
             email,
             isOptedOut,
@@ -21,98 +21,83 @@ router.post("/", async (req, res) => {
             customFields
         } = req.body;
 
-        // Check contact exists
-        const contact = await prisma.contact.findFirst({
-            where: { id: contactId, userId, isDeleted: false }
+
+        /* ===============================
+           DUPLICATE CHECK (PER ACCOUNT)
+        =============================== */
+        const exists = await prisma.contact.findFirst({
+            where: {
+                accountId,
+                phone,
+                isDeleted: false
+            }
         });
 
-        if (!contact) {
-            return res.status(RESPONSE_CODES.NOT_FOUND).json({
+        if (exists) {
+            return res.status(RESPONSE_CODES.ALREADY_EXIST).json({
                 status: 0,
-                message: "Contact not found",
-                statusCode: RESPONSE_CODES.NOT_FOUND,
+                message: "Contact with this phone already exists",
+                statusCode: RESPONSE_CODES.ALREADY_EXIST,
                 data: {}
             });
         }
 
+        /* ===============================
+           CREATE IN TRANSACTION
+        =============================== */
         const result = await prisma.$transaction(async (tx) => {
 
-            /* ===========================
-               UPDATE MAIN CONTACT
-            ============================ */
-            await tx.contact.update({
-                where: { id: contactId },
+            /* CREATE CONTACT */
+            const contact = await tx.contact.create({
                 data: {
-                    ...(firstName !== undefined && { firstName }),
-                    ...(lastName !== undefined && { lastName }),
-                    ...(country !== undefined && { country }),
-                    ...(languageCode !== undefined && { languageCode }),
-                    ...(email !== undefined && { email }),
-                    ...(isOptedOut !== undefined && { isOptedOut })
+                    accountId,
+                    createdByUserId: userId,
+                    firstName,
+                    lastName,
+                    country,
+                    phone,
+                    languageCode,
+                    email,
+                    isOptedOut: isOptedOut ?? false
                 }
             });
 
-            /* ===========================
-               UPDATE GROUPS (REPLACE)
-            ============================ */
-            if (groups !== undefined) {
-                if (!Array.isArray(groups)) {
-                    throw new Error("GROUPS_MUST_BE_ARRAY");
-                }
+            /* ASSIGN GROUPS */
+            if (Array.isArray(groups) && groups.length) {
 
-                if (groups.length) {
-                    const existingGroups = await tx.contactGroup.findMany({
-                        where: {
-                            userId,
-                            id: { in: groups },
-                            isDeleted: false
-                        },
-                        select: { id: true }
-                    });
-
-                    const validIds = existingGroups.map(g => g.id);
-                    const invalid = groups.filter(id => !validIds.includes(id));
-
-                    if (invalid.length) {
-                        throw new Error("INVALID_GROUP_IDS:" + invalid.join(","));
-                    }
-
-                    await tx.contactGroupMap.deleteMany({
-                        where: { contactId }
-                    });
-
-                    await tx.contactGroupMap.createMany({
-                        data: validIds.map(gid => ({
-                            contactId,
-                            groupId: gid
-                        }))
-                    });
-
-                } else {
-                    // If empty array → remove all groups
-                    await tx.contactGroupMap.deleteMany({
-                        where: { contactId }
-                    });
-                }
-            }
-
-            /* ===========================
-               UPDATE CUSTOM FIELDS (REPLACE)
-            ============================ */
-            if (customFields !== undefined) {
-                if (typeof customFields !== "object") {
-                    throw new Error("CUSTOM_FIELDS_INVALID");
-                }
-
-                await tx.contactCustomValue.deleteMany({
-                    where: { contactId }
+                const validGroups = await tx.contactGroup.findMany({
+                    where: {
+                        accountId,
+                        id: { in: groups },
+                        isDeleted: false
+                    },
+                    select: { id: true }
                 });
 
-                const keys = Object.keys(customFields || {});
+                const validIds = validGroups.map(g => g.id);
+                const invalid = groups.filter(id => !validIds.includes(id));
+
+                if (invalid.length) {
+                    throw new Error("INVALID_GROUP_IDS:" + invalid.join(","));
+                }
+
+                await tx.contactGroupMap.createMany({
+                    data: validIds.map(gid => ({
+                        contactId: contact.id,
+                        groupId: gid
+                    }))
+                });
+            }
+
+            /* SAVE CUSTOM FIELDS */
+            if (customFields && typeof customFields === "object") {
+
+                const keys = Object.keys(customFields);
+
                 if (keys.length) {
                     const fields = await tx.contactCustomField.findMany({
                         where: {
-                            userId,
+                            accountId,
                             key: { in: keys },
                             isDeleted: false
                         }
@@ -127,7 +112,7 @@ router.post("/", async (req, res) => {
 
                     await tx.contactCustomValue.createMany({
                         data: keys.map(key => ({
-                            contactId,
+                            contactId: contact.id,
                             fieldId: fieldMap.get(key),
                             value: String(customFields[key])
                         }))
@@ -135,48 +120,28 @@ router.post("/", async (req, res) => {
                 }
             }
 
-            /* ===========================
-               RETURN FULL UPDATED CONTACT
-            ============================ */
-            await tx.contact.findFirst({
-                where: { id: contactId },
+            /* RETURN FULL CONTACT */
+            return tx.contact.findFirst({
+                where: { id: contact.id },
                 include: {
-                    groups: true,
+                    groups: {
+                        include: { group: true }
+                    },
                     customValues: {
-                        include: {
-                            field: true
-                        }
+                        include: { field: true }
                     }
                 }
             });
         });
 
-        res.status(RESPONSE_CODES.GET).json({
+        res.status(RESPONSE_CODES.POST).json({
             status: 1,
-            message: "Contact updated successfully",
-            statusCode: RESPONSE_CODES.GET,
+            message: "Contact created successfully",
+            statusCode: RESPONSE_CODES.POST,
             data: result
         });
 
     } catch (error) {
-
-        if (error.message === "GROUPS_MUST_BE_ARRAY") {
-            return res.status(RESPONSE_CODES.BAD_REQUEST).json({
-                status: 0,
-                message: "groups must be an array",
-                statusCode: RESPONSE_CODES.BAD_REQUEST,
-                data: {}
-            });
-        }
-
-        if (error.message === "CUSTOM_FIELDS_INVALID") {
-            return res.status(RESPONSE_CODES.BAD_REQUEST).json({
-                status: 0,
-                message: "customFields must be an object",
-                statusCode: RESPONSE_CODES.BAD_REQUEST,
-                data: {}
-            });
-        }
 
         if (error.message?.startsWith("INVALID_GROUP_IDS:")) {
             return res.status(RESPONSE_CODES.BAD_REQUEST).json({
@@ -200,7 +165,8 @@ router.post("/", async (req, res) => {
             });
         }
 
-        console.error("Update contact error:", error);
+        console.error("Create contact error:", error);
+
         res.status(RESPONSE_CODES.ERROR).json({
             status: 0,
             message: "Internal server error",

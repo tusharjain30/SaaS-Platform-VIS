@@ -5,7 +5,7 @@ const updateGroupSchema = z.object({
         .number({
             required_error: "Group Id is required",
             invalid_type_error: "Group Id must be a number",
-        }),
+        }).int().positive(),
 
     title: z.string({
         required_error: "Title is required"

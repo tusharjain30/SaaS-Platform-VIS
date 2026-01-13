@@ -13,7 +13,7 @@ const { deleteGroupSchema } = require("../../../../schema/user/contacts/groups/d
 const { bulkDeleteGroupSchema } = require("../../../../schema/user/contacts/groups/bulkDelete.schema");
 const { readGroupsBodySchema } = require("../../../../schema/user/contacts/groups/read.schema");
 const { removeContactsFromGroupSchema } = require("../../../../schema/user/contacts/groups/removeContactsFromGroup.schema");
-const { getGroupContactsSchema } = require("../../../../schema/user/contacts/groups/getGroupContacts.schema");
+const { getGroupContactsParamsSchema, getGroupContactsQuerySchema } = require("../../../../schema/user/contacts/groups/getGroupContacts.schema");
 
 const createGroupRoute = require("./create");
 const updateGroupRoute = require("./update");
@@ -28,13 +28,13 @@ const getGroupContactsRoute = require("./getGroupContacts");
 
 router.use("/create", requireAuth, validator(createContactGroupSchema, "body"), createGroupRoute);
 router.use("/update", requireAuth, validator(updateGroupSchema, "body"), updateGroupRoute);
-router.use("/detail", requireAuth, validator(detailGroupSchema, "body"), groupDetailsRoute);
+router.use("/detail/:groupId", requireAuth, validator(detailGroupSchema, "params"), groupDetailsRoute);
 router.use("/toggle-archive", requireAuth, validator(toggleArchiveGroupSchema, "body"), toggleArchiveGroupRoute);
 router.use("/toggle-archive-bulk", requireAuth, validator(toggleArchiveBulkSchema, "body"), toggleArchiveBulkRoute);
-router.use("/delete", requireAuth, validator(deleteGroupSchema, "body"), deleteRoute);
+router.use("/delete/:groupId", requireAuth, validator(deleteGroupSchema, "params"), deleteRoute);
 router.use("/bulk-delete", requireAuth, validator(bulkDeleteGroupSchema, "body"), bulkDeleteRoute);
-router.use("/read", requireAuth, validator(readGroupsBodySchema, "body"), readRoute);
+router.use("/read", requireAuth, validator(readGroupsBodySchema, "query"), readRoute);
 router.use("/remove-contacts", requireAuth, validator(removeContactsFromGroupSchema, "body"), removeContactsFromGroupRoute);
-router.use("/contacts", requireAuth, validator(getGroupContactsSchema, "body"), getGroupContactsRoute);
+router.use("/contacts/:groupId", requireAuth, validator(getGroupContactsParamsSchema, "params"), validator(getGroupContactsQuerySchema, "query"), getGroupContactsRoute);
 
 module.exports = router;

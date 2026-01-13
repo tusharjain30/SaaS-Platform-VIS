@@ -8,7 +8,7 @@ const createContactSchema = z.object({
   phone: z.string({
     required_error: "Phone is required",
     invalid_type_error: "Phone must be a string"
-  }).min(10).max(10),
+  }).min(10, "Phone must be 10 digits").max(10, "Phone must be 10 digits"),
   languageCode: z.string().optional(),
   email: z.string().email().optional(),
 

@@ -18,8 +18,8 @@ const deleteRoute = require("./delete");
 
 router.use("/create", requireAuth, validator(createCustomFieldSchema, "body"), createRoute);
 router.use("/update", requireAuth, validator(updateCustomFieldSchema, "body"), updateRoute);
-router.use("/detail", requireAuth, validator(customFieldDetailSchema, "body"), detailRoute);
+router.use("/detail/:fieldId", requireAuth, validator(customFieldDetailSchema, "params"), detailRoute);
 router.use("/list", requireAuth, validator(listCustomFieldsSchema, "query"), listRoute);
-router.use("/delete", requireAuth, validator(deleteCustomFieldSchema, "body"), deleteRoute);
+router.use("/delete/:fieldId", requireAuth, validator(deleteCustomFieldSchema, "params"), deleteRoute);
 
 module.exports = router;

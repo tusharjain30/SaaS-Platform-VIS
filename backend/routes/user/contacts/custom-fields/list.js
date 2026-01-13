@@ -7,11 +7,11 @@ const prisma = new PrismaClient();
 
 router.get("/", async (req, res) => {
     try {
-        const userId = req.user.id;
-        const { search } = req.validatedQuery;
+        const { accountId } = req.auth;
+        const { search } = req.validatedQuery || {};
 
         const where = {
-            userId,
+            accountId,
             ...(search && {
                 OR: [
                     { name: { contains: search, mode: "insensitive" } },
@@ -28,7 +28,7 @@ router.get("/", async (req, res) => {
 
         res.status(RESPONSE_CODES.GET).json({
             status: 1,
-            message: "Custom fields list fetched",
+            message: "Custom fields list fetched successfully",
             statusCode: RESPONSE_CODES.GET,
             data: fields,
         });

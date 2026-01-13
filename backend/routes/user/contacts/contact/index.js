@@ -22,10 +22,10 @@ const assignGroupsToContactsRoute = require("./assignGroupsToContacts");
 
 router.use("/create", requireAuth, validator(createContactSchema, "body"), createContactRoute);
 router.use("/update", requireAuth, validator(updateContactSchema, "body"), updateContactRoute);
-router.use("/detail", validator(detailContactSchema, "body"), requireAuth, contactDetailsRoute);
+router.use("/detail/:contactId", requireAuth, validator(detailContactSchema, "params"), contactDetailsRoute);
 router.use("/read", requireAuth, readContactsRoute);
-router.use("/delete", validator(deleteContactSchema, "body"), requireAuth, deleteContactsRoute);
-router.use("/bulk-delete", validator(bulkDeleteContactsSchema, "body"), requireAuth, bulkDeleteRoute);
+router.use("/delete/:contactId", requireAuth, validator(deleteContactSchema, "params"), deleteContactsRoute);
+router.use("/bulk-delete", requireAuth, validator(bulkDeleteContactsSchema, "body"), bulkDeleteRoute);
 router.use("/import", requireAuth, importContactsRoute);
 router.use("/assign-groups", requireAuth, validator(assignGroupsToContactsSchema, "body"), assignGroupsToContactsRoute);
 

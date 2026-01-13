@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
 
 router.get("/", async (req, res) => {
     try {
-        const userId = req.user.id;
+        const { accountId } = req.auth;
 
         let {
             page = 1,
@@ -17,12 +17,12 @@ router.get("/", async (req, res) => {
             isOptedOut
         } = req.query;
 
-        page = Number(page);
-        limit = Number(limit);
+        page = Math.max(1, Number(page) || 1);
+        limit = Math.min(100, Math.max(1, Number(limit) || 20));
         const skip = (page - 1) * limit;
 
         const where = {
-            userId,
+            accountId,
             isDeleted: false
         };
 
@@ -41,7 +41,7 @@ router.get("/", async (req, res) => {
         if (isOptedOut === "false") where.isOptedOut = false;
 
         // Group filter
-        if (groupId) {
+        if (groupId && !isNaN(Number(groupId))) {
             where.groups = {
                 some: {
                     groupId: Number(groupId)

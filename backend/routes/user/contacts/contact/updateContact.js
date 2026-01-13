@@ -8,7 +8,7 @@ const prisma = new PrismaClient();
 router.put("/", async (req, res) => {
     try {
 
-        const userId = req.user.id;
+        const { accountId } = req.auth;
 
         const {
             contactId,
@@ -18,13 +18,13 @@ router.put("/", async (req, res) => {
             languageCode,
             email,
             isOptedOut,
-            groups = [],
-            customFields = {}
+            groups,
+            customFields
         } = req.body;
 
         // Check contact exists
         const contact = await prisma.contact.findFirst({
-            where: { id: contactId, userId, isDeleted: false }
+            where: { id: contactId, accountId, isDeleted: false }
         });
 
         if (!contact) {
@@ -40,7 +40,7 @@ router.put("/", async (req, res) => {
         const result = await prisma.$transaction(async (tx) => {
 
             // Update main contact
-            const updated = await tx.contact.update({
+            await tx.contact.update({
                 where: { id: contactId },
                 data: {
                     ...(firstName !== undefined && { firstName }),
@@ -52,64 +52,108 @@ router.put("/", async (req, res) => {
                 }
             });
 
-            // Update groups (replace)
-            if (groups.length) {
-                const existingGroups = await tx.contactGroup.findMany({
-                    where: { userId, id: { in: groups } },
-                    select: { id: true }
-                });
+            /* ===============================
+          UPDATE GROUPS (REPLACE MODE)
+      =============================== */
+            if (groups !== undefined) {
 
-                const validIds = existingGroups.map(g => g.id);
-                const invalid = groups.filter(id => !validIds.includes(id));
-
-                if (invalid.length) {
-                    throw new Error("INVALID_GROUP_IDS:" + invalid.join(","));
+                if (!Array.isArray(groups)) {
+                    throw new Error("GROUPS_MUST_BE_ARRAY");
                 }
 
-                await tx.contactGroupMap.deleteMany({
-                    where: { contactId }
-                });
+                if (groups.length) {
 
-                await tx.contactGroupMap.createMany({
-                    data: validIds.map(gid => ({
-                        contactId,
-                        groupId: gid
-                    }))
-                });
+                    const existingGroups = await tx.contactGroup.findMany({
+                        where: {
+                            accountId,
+                            id: { in: groups },
+                            isDeleted: false
+                        },
+                        select: { id: true }
+                    });
+
+                    const validIds = existingGroups.map(g => g.id);
+                    const invalid = groups.filter(id => !validIds.includes(id));
+
+                    if (invalid.length) {
+                        throw new Error("INVALID_GROUP_IDS:" + invalid.join(","));
+                    }
+
+                    await tx.contactGroupMap.deleteMany({
+                        where: { contactId }
+                    });
+
+                    await tx.contactGroupMap.createMany({
+                        data: validIds.map(gid => ({
+                            contactId,
+                            groupId: gid
+                        }))
+                    });
+
+                } else {
+                    // Empty array => remove all groups
+                    await tx.contactGroupMap.deleteMany({
+                        where: { contactId }
+                    });
+                }
             }
 
-            // Update custom fields
-            if (customFields && Object.keys(customFields).length) {
+            /* ===============================
+             UPDATE CUSTOM FIELDS (REPLACE MODE)
+            =============================== */
+            if (customFields !== undefined) {
+
+                if (typeof customFields !== "object") {
+                    throw new Error("CUSTOM_FIELDS_INVALID");
+                }
+
                 await tx.contactCustomValue.deleteMany({
                     where: { contactId }
                 });
 
-                const fields = await tx.contactCustomField.findMany({
-                    where: { userId }
-                });
+                const keys = Object.keys(customFields || {});
 
-                const fieldMap = new Map(fields.map(f => [f.key, f.id]));
+                if (keys.length) {
 
-                const inserts = [];
-
-                for (const [key, value] of Object.entries(customFields)) {
-                    const fieldId = fieldMap.get(key);
-                    if (!fieldId) continue; // ignore unknown keys
-
-                    inserts.push({
-                        contactId,
-                        fieldId,
-                        value: String(value)
+                    const fields = await tx.contactCustomField.findMany({
+                        where: {
+                            accountId,
+                            key: { in: keys },
+                            isDeleted: false
+                        }
                     });
 
-                }
+                    const fieldMap = new Map(fields.map(f => [f.key, f.id]));
 
-                if (inserts.length) {
-                    await tx.contactCustomValue.createMany({ data: inserts });
+                    const invalidKeys = keys.filter(k => !fieldMap.has(k));
+                    if (invalidKeys.length) {
+                        throw new Error("INVALID_CUSTOM_FIELDS:" + invalidKeys.join(","));
+                    }
+
+                    await tx.contactCustomValue.createMany({
+                        data: keys.map(key => ({
+                            contactId,
+                            fieldId: fieldMap.get(key),
+                            value: String(customFields[key])
+                        }))
+                    });
                 }
             }
 
-            return updated;
+            /* ===============================
+                RETURN FULL UPDATED CONTACT
+            =============================== */
+            return tx.contact.findFirst({
+                where: { id: contactId },
+                include: {
+                    groups: {
+                        include: { group: true }
+                    },
+                    customValues: {
+                        include: { field: true }
+                    }
+                }
+            });
         });
 
         res.status(RESPONSE_CODES.GET).json({
@@ -120,6 +164,24 @@ router.put("/", async (req, res) => {
         });
 
     } catch (error) {
+        if (error.message === "GROUPS_MUST_BE_ARRAY") {
+            return res.status(RESPONSE_CODES.BAD_REQUEST).json({
+                status: 0,
+                message: "groups must be an array",
+                statusCode: RESPONSE_CODES.BAD_REQUEST,
+                data: {}
+            });
+        }
+
+        if (error.message === "CUSTOM_FIELDS_INVALID") {
+            return res.status(RESPONSE_CODES.BAD_REQUEST).json({
+                status: 0,
+                message: "customFields must be an object",
+                statusCode: RESPONSE_CODES.BAD_REQUEST,
+                data: {}
+            });
+        }
+
         if (error.message?.startsWith("INVALID_GROUP_IDS:")) {
             return res.status(RESPONSE_CODES.BAD_REQUEST).json({
                 status: 0,
@@ -127,6 +189,17 @@ router.put("/", async (req, res) => {
                 statusCode: RESPONSE_CODES.BAD_REQUEST,
                 data: {
                     invalidGroupIds: error.message.replace("INVALID_GROUP_IDS:", "").split(",")
+                }
+            });
+        }
+
+        if (error.message?.startsWith("INVALID_CUSTOM_FIELDS:")) {
+            return res.status(RESPONSE_CODES.BAD_REQUEST).json({
+                status: 0,
+                message: "Some custom field keys are invalid",
+                statusCode: RESPONSE_CODES.BAD_REQUEST,
+                data: {
+                    invalidKeys: error.message.replace("INVALID_CUSTOM_FIELDS:", "").split(",")
                 }
             });
         }

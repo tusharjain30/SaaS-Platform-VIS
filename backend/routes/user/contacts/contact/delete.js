@@ -7,18 +7,18 @@ const prisma = new PrismaClient();
 
 router.delete("/", async (req, res) => {
     try {
-        const userId = req.user.id;
-        const { contactId } = req.body;
+        const { accountId } = req.auth;
+        const params = req.validatedParams;
+        const contactId = Number(params.contactId);
 
-        const contactIdNum = Number(contactId);
-
-        /* ---------- CHECK CONTACT ---------- */
+        /* ---------- CHECK CONTACT OWNERSHIP ---------- */
         const contact = await prisma.contact.findFirst({
             where: {
-                id: contactIdNum,
-                userId,
+                id: contactId,
+                accountId,
                 isDeleted: false
-            }
+            },
+            select: { id: true },
         });
 
         if (!contact) {
@@ -35,21 +35,19 @@ router.delete("/", async (req, res) => {
 
             // Delete group mappings
             await tx.contactGroupMap.deleteMany({
-                where: {
-                    contactId: contactIdNum
-                }
+                where: { contactId }
             });
 
             // Delete custom field values
             await tx.contactCustomValue.deleteMany({
                 where: {
-                    contactId: contactIdNum
+                    contactId
                 }
             });
 
             // Soft delete contact
             await tx.contact.update({
-                where: { id: contactIdNum },
+                where: { id: contactId },
                 data: { isDeleted: true }
             });
         });

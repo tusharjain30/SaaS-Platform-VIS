@@ -7,13 +7,15 @@ const prisma = new PrismaClient();
 
 router.get("/", async (req, res) => {
     try {
-        let { contactId } = req.body;
-        const userId = req.user.id;
+        const params = req.validatedParams;
+        const contactId = Number(params.contactId);
+
+        const { accountId } = req.auth;
 
         const contact = await prisma.contact.findFirst({
             where: {
                 id: contactId,
-                userId,
+                accountId,
                 isDeleted: false
             },
             include: {
@@ -29,6 +31,7 @@ router.get("/", async (req, res) => {
                 }
             }
         });
+        console.log(contact)
 
         if (!contact) {
             return res.status(RESPONSE_CODES.NOT_FOUND).json({
@@ -66,6 +69,7 @@ router.get("/", async (req, res) => {
                 email: contact.email,
                 isOptedOut: contact.isOptedOut,
                 createdAt: contact.createdAt,
+                updatedAt: contact.updatedAt,
 
                 groups,
                 customFields

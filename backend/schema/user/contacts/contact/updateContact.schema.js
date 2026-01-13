@@ -18,7 +18,7 @@ const updateContactSchema = z.object({
 
     groups: z.array(z.number().int().positive()).optional(),
 
-    customFields: z.record(z.string(), z.any()).optional()
+    customFields: z.record(z.any()).optional()
 });
 
 module.exports = { updateContactSchema };

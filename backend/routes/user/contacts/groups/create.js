@@ -7,14 +7,13 @@ const prisma = new PrismaClient();
 
 router.post("/", async (req, res) => {
     try {
-        const userId = req.user.id;
-
+        const { accountId, userId } = req.auth;
         const { title, description } = req.body;
 
         // Check duplicate group name for same user
         const existing = await prisma.contactGroup.findFirst({
             where: {
-                userId,
+                accountId,
                 title: {
                     equals: title,
                     mode: "insensitive"
@@ -34,9 +33,10 @@ router.post("/", async (req, res) => {
 
         const group = await prisma.contactGroup.create({
             data: {
-                userId,
+                accountId,
                 title,
-                description
+                description,
+                createdByUserId: userId
             }
         });
 

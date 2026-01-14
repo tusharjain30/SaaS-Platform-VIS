@@ -2,14 +2,17 @@ import { Bell, Search, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/contexts/AuthContext";
+import { capitalize } from "@/utils/Capitalize";
 
 export function Header() {
+  const { user } = useAuth();
   return (
     <header className="h-16 bg-card border-b border-border px-6 flex items-center justify-between sticky top-0 z-10">
       <div className="flex items-center gap-4">
         <div>
           <h1 className="text-xl font-bold text-foreground">Dashboard</h1>
-          <p className="text-sm text-muted-foreground">Welcome back, John 👋</p>
+          <p className="text-sm text-muted-foreground">Welcome back, {capitalize(user?.firstName)} 👋</p>
         </div>
       </div>
 

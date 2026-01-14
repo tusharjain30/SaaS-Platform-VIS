@@ -1,129 +1,112 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+} from "react";
 
-export interface User {
-  id: string;
-  email: string;
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:4000";
+
+/* ================= TYPES ================= */
+
+export type Role = {
+  id: number;
   name: string;
-  avatar?: string;
-  role: 'admin' | 'user' | 'agent';
-  company?: string;
-}
+  roleType: string;
+};
 
-interface AuthContextType {
+export type Account = {
+  id: number;
+  companyName: string;
+};
+
+export type User = {
+  id: number;
+  firstName: string;
+  lastName: string;
+  userName: string;
+  email: string;
+  phone: string;
+  image: string | null;
+  role: Role;
+  account: Account;
+};
+
+/* ================= CONTEXT TYPE ================= */
+
+type AuthContextType = {
   user: User | null;
+  loading: boolean;
   isAuthenticated: boolean;
   isAdmin: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
-  loginWithGoogle: () => Promise<boolean>;
-  loginWithGithub: () => Promise<boolean>;
-  signup: (email: string, password: string, name: string) => Promise<boolean>;
   logout: () => void;
-}
+  refetchProfile: () => Promise<void>;
+};
+
+/* ================= CONTEXT ================= */
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const mockUsers: Record<string, User> = {
-  'admin@chatflow.com': {
-    id: '1',
-    email: 'admin@chatflow.com',
-    name: 'Admin User',
-    role: 'admin',
-    company: 'ChatFlow Inc.',
-  },
-  'john@company.com': {
-    id: '2',
-    email: 'john@company.com',
-    name: 'John Doe',
-    role: 'user',
-    company: 'Acme Corp',
-  },
-};
+/* ================= PROVIDER ================= */
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(() => {
-    const stored = localStorage.getItem('chatflow_user');
-    return stored ? JSON.parse(stored) : null;
-  });
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const login = useCallback(async (email: string, password: string): Promise<boolean> => {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const foundUser = mockUsers[email];
-    if (foundUser && password.length >= 6) {
-      setUser(foundUser);
-      localStorage.setItem('chatflow_user', JSON.stringify(foundUser));
-      return true;
+  /* ========== FETCH PROFILE ========== */
+  const fetchProfile = useCallback(async () => {
+    const token = localStorage.getItem("auth_token");
+
+    if (!token) {
+      setUser(null);
+      setLoading(false);
+      return;
     }
-    
-    // Allow any email/password for demo
-    const newUser: User = {
-      id: Date.now().toString(),
-      email,
-      name: email.split('@')[0],
-      role: 'user',
-    };
-    setUser(newUser);
-    localStorage.setItem('chatflow_user', JSON.stringify(newUser));
-    return true;
+
+    try {
+      const res = await fetch(`${API_BASE}/user/profile/me`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const json = await res.json();
+
+      if (!res.ok || json.status !== 1) {
+        throw new Error("Invalid token");
+      }
+
+      setUser(json.data);
+    } catch (err) {
+      console.error("Profile fetch failed:", err);
+      logout(); // token invalid → force logout
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const loginWithGoogle = useCallback(async (): Promise<boolean> => {
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    const googleUser: User = {
-      id: 'google-' + Date.now(),
-      email: 'user@gmail.com',
-      name: 'Google User',
-      role: 'user',
-    };
-    setUser(googleUser);
-    localStorage.setItem('chatflow_user', JSON.stringify(googleUser));
-    return true;
-  }, []);
+  /* ========== LOAD PROFILE ON APP START ========== */
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
 
-  const loginWithGithub = useCallback(async (): Promise<boolean> => {
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    const githubUser: User = {
-      id: 'github-' + Date.now(),
-      email: 'user@github.com',
-      name: 'GitHub User',
-      role: 'user',
-    };
-    setUser(githubUser);
-    localStorage.setItem('chatflow_user', JSON.stringify(githubUser));
-    return true;
-  }, []);
-
-  const signup = useCallback(async (email: string, password: string, name: string): Promise<boolean> => {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const newUser: User = {
-      id: Date.now().toString(),
-      email,
-      name,
-      role: 'user',
-    };
-    setUser(newUser);
-    localStorage.setItem('chatflow_user', JSON.stringify(newUser));
-    return true;
-  }, []);
-
+  /* ========== LOGOUT ========== */
   const logout = useCallback(() => {
+    localStorage.removeItem("auth_token");
+    localStorage.removeItem("user");
     setUser(null);
-    localStorage.removeItem('chatflow_user');
   }, []);
 
   return (
     <AuthContext.Provider
       value={{
         user,
+        loading,
         isAuthenticated: !!user,
-        isAdmin: user?.role === 'admin',
-        login,
-        loginWithGoogle,
-        loginWithGithub,
-        signup,
+        isAdmin: user?.role?.roleType === "ADMIN",
         logout,
+        refetchProfile: fetchProfile,
       }}
     >
       {children}
@@ -131,10 +114,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+/* ================= HOOK ================= */
+
 export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used inside AuthProvider");
+  return ctx;
 }

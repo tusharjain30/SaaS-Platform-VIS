@@ -1,12 +1,13 @@
-import { 
-  MessageSquare, 
-  Send, 
-  CheckCheck, 
-  Users, 
-  UserPlus, 
+import { useEffect, useState } from "react";
+import {
+  MessageSquare,
+  Send,
+  CheckCheck,
+  Users,
+  UserPlus,
   Megaphone,
   Bot,
-  TrendingUp
+  TrendingUp,
 } from "lucide-react";
 import { MetricCard } from "./MetricCard";
 import { ConversationItem } from "./ConversationItem";
@@ -14,6 +15,10 @@ import { QuickActionCard } from "./QuickActionCard";
 import { BroadcastItem } from "./BroadcastItem";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
+
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:4000";
+
+/* ================= STATIC UI DATA ================= */
 
 const conversations = [
   {
@@ -29,24 +34,6 @@ const conversations = [
     time: "15m ago",
     status: "delivered" as const,
   },
-  {
-    name: "Emma Wilson",
-    message: "Hi! I'd like to know more about your services",
-    time: "1h ago",
-    unread: 1,
-  },
-  {
-    name: "David Brown",
-    message: "Perfect, I'll wait for the delivery update",
-    time: "2h ago",
-    status: "read" as const,
-  },
-  {
-    name: "Lisa Anderson",
-    message: "Is this available in blue color?",
-    time: "3h ago",
-    status: "sent" as const,
-  },
 ];
 
 const broadcasts = [
@@ -57,81 +44,138 @@ const broadcasts = [
     total: 5000,
     date: "Jan 7, 2025",
   },
-  {
-    name: "New Product Launch",
-    status: "scheduled" as const,
-    sent: 0,
-    total: 8500,
-    date: "Jan 10, 2025",
-  },
-  {
-    name: "Weekly Newsletter",
-    status: "completed" as const,
-    sent: 3200,
-    total: 3200,
-    date: "Jan 5, 2025",
-  },
 ];
 
+/* ================= TYPES ================= */
+
+type DashboardStats = {
+  totalContacts: number;
+  totalGroups: number;
+  totalTemplates: number;
+  totalBots: number;
+  totalBotReplies: number;
+  activeTeamMembers: number;
+  messagesInQueue: number;
+  messagesProcessed: number;
+};
+
 export function Dashboard() {
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  /* ================= FETCH STATS ================= */
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const token = localStorage.getItem("auth_token");
+
+        const res = await fetch(`${API_BASE}/user/dashboard/stats`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        const json = await res.json();
+
+        if (!res.ok || json.status !== 1) {
+          throw new Error(json.message || "Failed to load dashboard stats");
+        }
+
+        setStats(json.data);
+      } catch (err) {
+        console.error("Dashboard stats error:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
+
+  if (loading) {
+    return <div className="p-6">Loading dashboard...</div>;
+  }
+
+  if (!stats) {
+    return (
+      <div className="p-6 text-red-500">Failed to load dashboard data</div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen bg-background w-full">
       <Sidebar />
-      
+
       <div className="flex-1 flex flex-col min-w-0">
         <Header />
-        
+
         <main className="flex-1 p-6 overflow-auto">
           <div className="max-w-7xl mx-auto space-y-6">
-            {/* Metrics Grid */}
+            {/* ================= METRICS ================= */}
             <section className="animate-fade-in">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <MetricCard
-                  title="Total Messages"
-                  value="24,589"
-                  change="+12.5%"
-                  changeType="positive"
-                  icon={MessageSquare}
+                  title="Active Contacts"
+                  value={stats.totalContacts.toString()}
+                  icon={Users}
                   variant="primary"
                 />
+
                 <MetricCard
-                  title="Messages Sent"
-                  value="18,432"
-                  change="+8.2%"
-                  changeType="positive"
-                  icon={Send}
+                  title="Groups"
+                  value={stats.totalGroups.toString()}
+                  icon={Users}
                 />
+
                 <MetricCard
-                  title="Read Rate"
-                  value="94.2%"
-                  change="+2.1%"
-                  changeType="positive"
-                  icon={CheckCheck}
+                  title="Templates"
+                  value={stats.totalTemplates.toString()}
+                  icon={MessageSquare}
+                />
+
+                <MetricCard
+                  title="Bots"
+                  value={stats.totalBots.toString()}
+                  icon={Bot}
                   variant="success"
                 />
+
                 <MetricCard
-                  title="Active Contacts"
-                  value="8,124"
-                  change="+156"
-                  changeType="positive"
-                  icon={Users}
+                  title="Bot Replies"
+                  value={stats.totalBotReplies.toString()}
+                  icon={CheckCheck}
+                />
+
+                <MetricCard
+                  title="Team Members"
+                  value={stats.activeTeamMembers.toString()}
+                  icon={UserPlus}
+                />
+
+                <MetricCard
+                  title="Messages in Queue"
+                  value={stats.messagesInQueue.toString()}
+                  icon={Send}
+                />
+
+                <MetricCard
+                  title="Messages Processed"
+                  value={stats.messagesProcessed.toString()}
+                  icon={TrendingUp}
+                  variant="success"
                 />
               </div>
             </section>
 
-            {/* Main Content Grid */}
+            {/* ================= MAIN GRID ================= */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Recent Conversations */}
-              <section className="lg:col-span-2 animate-slide-up" style={{ animationDelay: "0.1s" }}>
+              {/* Conversations */}
+              <section className="lg:col-span-2">
                 <div className="card-elevated">
-                  <div className="p-4 border-b border-border flex items-center justify-between">
-                    <div>
-                      <h2 className="text-lg font-semibold text-foreground">Recent Conversations</h2>
-                      <p className="text-sm text-muted-foreground">Your latest customer interactions</p>
-                    </div>
-                    <button className="text-sm font-medium text-primary hover:text-primary/80 transition-colors">
-                      View All
-                    </button>
+                  <div className="p-4 border-b border-border">
+                    <h2 className="text-lg font-semibold">
+                      Recent Conversations
+                    </h2>
                   </div>
                   <div className="p-2 space-y-1">
                     {conversations.map((conv, index) => (
@@ -146,45 +190,36 @@ export function Dashboard() {
               </section>
 
               {/* Quick Actions */}
-              <section className="animate-slide-up" style={{ animationDelay: "0.2s" }}>
-                <h2 className="text-lg font-semibold text-foreground mb-4">Quick Actions</h2>
+              <section>
+                <h2 className="text-lg font-semibold mb-4">Quick Actions</h2>
                 <div className="space-y-3">
                   <QuickActionCard
                     icon={Megaphone}
                     title="Create Broadcast"
-                    description="Send messages to multiple contacts at once"
-                    variant="primary"
+                    description="Send messages to multiple contacts"
                   />
                   <QuickActionCard
                     icon={UserPlus}
                     title="Import Contacts"
-                    description="Add new contacts from CSV or Excel file"
+                    description="Upload CSV or Excel"
                   />
                   <QuickActionCard
                     icon={Bot}
                     title="Setup Chatbot"
-                    description="Automate responses with AI-powered bots"
+                    description="Automate responses"
                   />
                   <QuickActionCard
                     icon={TrendingUp}
                     title="View Analytics"
-                    description="Track your messaging performance"
+                    description="Track performance"
                   />
                 </div>
               </section>
             </div>
 
-            {/* Broadcasts Section */}
-            <section className="animate-slide-up" style={{ animationDelay: "0.3s" }}>
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h2 className="text-lg font-semibold text-foreground">Recent Broadcasts</h2>
-                  <p className="text-sm text-muted-foreground">Track your campaign performance</p>
-                </div>
-                <button className="text-sm font-medium text-primary hover:text-primary/80 transition-colors">
-                  View All Campaigns
-                </button>
-              </div>
+            {/* ================= BROADCASTS ================= */}
+            <section>
+              <h2 className="text-lg font-semibold mb-4">Recent Broadcasts</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {broadcasts.map((broadcast, index) => (
                   <BroadcastItem key={index} {...broadcast} />

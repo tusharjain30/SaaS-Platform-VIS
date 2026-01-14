@@ -21,6 +21,8 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { capitalize } from "@/utils/Capitalize";
 
 interface NavItemProps {
   icon: React.ElementType;
@@ -45,7 +47,12 @@ function NavItem({ icon: Icon, label, to, badge, collapsed }: NavItemProps) {
         collapsed && "justify-center px-2"
       )}
     >
-      <Icon className={cn("h-5 w-5 flex-shrink-0", isActive && "text-primary-foreground")} />
+      <Icon
+        className={cn(
+          "h-5 w-5 flex-shrink-0",
+          isActive && "text-primary-foreground"
+        )}
+      />
       {!collapsed && (
         <>
           <span className="flex-1 text-left">{label}</span>
@@ -68,8 +75,14 @@ function NavItem({ icon: Icon, label, to, badge, collapsed }: NavItemProps) {
 }
 
 export function Sidebar() {
+  const { user, logout } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
-  const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout(); // clears storage + context
+    navigate("/login"); // redirect to login
+  };
 
   const mainNavItems = [
     { icon: LayoutDashboard, label: "Dashboard", to: "/" },
@@ -100,7 +113,13 @@ export function Sidebar() {
     >
       {/* Logo */}
       <div className="p-4 flex items-center justify-between">
-        <NavLink to="/" className={cn("flex items-center gap-3", collapsed && "justify-center w-full")}>
+        <NavLink
+          to="/"
+          className={cn(
+            "flex items-center gap-3",
+            collapsed && "justify-center w-full"
+          )}
+        >
           <div className="h-10 w-10 rounded-xl gradient-whatsapp flex items-center justify-center flex-shrink-0">
             <MessageSquare className="h-5 w-5 text-primary-foreground" />
           </div>
@@ -135,7 +154,11 @@ export function Sidebar() {
       {/* Main Navigation */}
       <nav className="flex-1 px-3 space-y-4 overflow-y-auto">
         <div className="space-y-1">
-          {!collapsed && <p className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Main</p>}
+          {!collapsed && (
+            <p className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Main
+            </p>
+          )}
           {mainNavItems.map((item) => (
             <NavItem
               key={item.label}
@@ -148,7 +171,11 @@ export function Sidebar() {
           ))}
         </div>
         <div className="space-y-1">
-          {!collapsed && <p className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Features</p>}
+          {!collapsed && (
+            <p className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Features
+            </p>
+          )}
           {featureNavItems.map((item) => (
             <NavItem
               key={item.label}
@@ -173,7 +200,7 @@ export function Sidebar() {
             collapsed={collapsed}
           />
         ))}
-        
+
         {/* Admin Link */}
         <NavLink
           to="/admin"
@@ -199,12 +226,21 @@ export function Sidebar() {
           </div>
           {!collapsed && (
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-foreground truncate">John Doe</p>
-              <p className="text-xs text-muted-foreground truncate">john@company.com</p>
+              <p className="text-sm font-medium text-foreground truncate">
+                {capitalize(`${user?.firstName} ${user?.lastName}`)}
+              </p>
+              <p className="text-xs text-muted-foreground truncate">
+                {user?.email}
+              </p>
             </div>
           )}
           {!collapsed && (
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={logout}>
+            <Button
+              onClick={handleLogout}
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+            >
               <LogOut className="h-4 w-4" />
             </Button>
           )}

@@ -18,7 +18,8 @@ router.post("/", async (req, res) => {
             email,
             phone,
             password,
-            userName
+            userName,
+            termsAccepted
         } = req.body;
 
         const existingUser = await prisma.user.findFirst({
@@ -72,6 +73,7 @@ router.post("/", async (req, res) => {
                     password: hashedPassword,
                     roleId: role.id,
                     accountId: account.id,
+                    termsAccepted
                 },
             });
 

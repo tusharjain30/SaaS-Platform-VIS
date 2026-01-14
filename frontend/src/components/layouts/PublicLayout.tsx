@@ -1,16 +1,16 @@
-import { Link, useLocation } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { MessageSquare, Menu, X } from 'lucide-react';
-import { useState } from 'react';
-import { cn } from '@/lib/utils';
+import { Link, useLocation } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { MessageSquare, Menu, X } from "lucide-react";
+import { useState } from "react";
+import { cn } from "@/lib/utils";
 
 const navLinks = [
-  { label: 'Features', href: '/features' },
-  { label: 'Pricing', href: '/pricing' },
-  { label: 'Use Cases', href: '/use-cases' },
-  { label: 'Integrations', href: '/integrations' },
-  { label: 'About', href: '/about' },
-  { label: 'Contact', href: '/contact' },
+  { label: "Features", href: "/features" },
+  { label: "Pricing", href: "/pricing" },
+  { label: "Use Cases", href: "/use-cases" },
+  { label: "Integrations", href: "/integrations" },
+  { label: "About", href: "/about" },
+  { label: "Contact", href: "/contact" },
 ];
 
 export function PublicLayout({ children }: { children: React.ReactNode }) {
@@ -66,7 +66,11 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
               className="md:hidden"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
-              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              {mobileMenuOpen ? (
+                <X className="h-5 w-5" />
+              ) : (
+                <Menu className="h-5 w-5" />
+              )}
             </Button>
           </div>
         </div>
@@ -124,24 +128,56 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
             <div>
               <h4 className="font-semibold mb-3">Product</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><Link to="/features" className="hover:text-primary">Features</Link></li>
-                <li><Link to="/pricing" className="hover:text-primary">Pricing</Link></li>
-                <li><Link to="/integrations" className="hover:text-primary">Integrations</Link></li>
+                <li>
+                  <Link to="/features" className="hover:text-primary">
+                    Features
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/pricing" className="hover:text-primary">
+                    Pricing
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/integrations" className="hover:text-primary">
+                    Integrations
+                  </Link>
+                </li>
               </ul>
             </div>
             <div>
               <h4 className="font-semibold mb-3">Company</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><Link to="/about" className="hover:text-primary">About Us</Link></li>
-                <li><Link to="/contact" className="hover:text-primary">Contact</Link></li>
-                <li><Link to="/use-cases" className="hover:text-primary">Use Cases</Link></li>
+                <li>
+                  <Link to="/about" className="hover:text-primary">
+                    About Us
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/contact" className="hover:text-primary">
+                    Contact
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/use-cases" className="hover:text-primary">
+                    Use Cases
+                  </Link>
+                </li>
               </ul>
             </div>
             <div>
               <h4 className="font-semibold mb-3">Legal</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><Link to="/privacy" className="hover:text-primary">Privacy Policy</Link></li>
-                <li><Link to="/terms" className="hover:text-primary">Terms of Service</Link></li>
+                <li>
+                  <Link to="/privacy" className="hover:text-primary">
+                    Privacy Policy
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/terms" className="hover:text-primary">
+                    Terms of Service
+                  </Link>
+                </li>
               </ul>
             </div>
           </div>

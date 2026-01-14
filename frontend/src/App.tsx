@@ -5,6 +5,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 
+import ProtectedRoute from "./utils/ProtectedRoute";
+import PublicOnlyRoute from "./utils/PublicOnlyRoute";
+
 // Public pages
 import Home from "./pages/public/Home";
 import Features from "./pages/public/Features";
@@ -59,33 +62,173 @@ const App = () => (
             <Route path="/integrations" element={<Integrations />} />
             <Route path="/about" element={<About />} />
             <Route path="/contact" element={<Contact />} />
-            
-            {/* Auth Routes */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
-            
-            {/* Dashboard Routes */}
-            <Route path="/" element={<Index />} />
-            <Route path="/inbox" element={<Inbox />} />
-            <Route path="/contacts" element={<Contacts />} />
-            <Route path="/broadcasts" element={<Broadcasts />} />
-            <Route path="/chatbots" element={<Chatbots />} />
-            <Route path="/templates" element={<Templates />} />
-            <Route path="/automation" element={<Automation />} />
-            <Route path="/team" element={<TeamMembers />} />
-            <Route path="/analytics" element={<Analytics />} />
-            <Route path="/billing" element={<Billing />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/help" element={<Help />} />
-            
-            {/* Admin Routes */}
-            <Route path="/admin" element={<AdminDashboard />} />
-            <Route path="/admin/users" element={<UserManagement />} />
-            <Route path="/admin/plans" element={<PlansManagement />} />
-            <Route path="/admin/logs" element={<MessageLogs />} />
-            <Route path="/admin/payments" element={<PaymentHistory />} />
-            <Route path="/admin/settings" element={<SystemSettings />} />
-            
+
+            {/* Auth Routes (Only if NOT logged in) */}
+            <Route
+              path="/login"
+              element={
+                <PublicOnlyRoute>
+                  <Login />
+                </PublicOnlyRoute>
+              }
+            />
+            <Route
+              path="/signup"
+              element={
+                <PublicOnlyRoute>
+                  <Signup />
+                </PublicOnlyRoute>
+              }
+            />
+
+            {/* Dashboard Routes (Protected) */}
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <Index />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/inbox"
+              element={
+                <ProtectedRoute>
+                  <Inbox />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/contacts"
+              element={
+                <ProtectedRoute>
+                  <Contacts />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/broadcasts"
+              element={
+                <ProtectedRoute>
+                  <Broadcasts />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/chatbots"
+              element={
+                <ProtectedRoute>
+                  <Chatbots />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/templates"
+              element={
+                <ProtectedRoute>
+                  <Templates />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/automation"
+              element={
+                <ProtectedRoute>
+                  <Automation />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/team"
+              element={
+                <ProtectedRoute>
+                  <TeamMembers />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/analytics"
+              element={
+                <ProtectedRoute>
+                  <Analytics />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/billing"
+              element={
+                <ProtectedRoute>
+                  <Billing />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute>
+                  <Settings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/help"
+              element={
+                <ProtectedRoute>
+                  <Help />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Admin Routes (Protected) */}
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/users"
+              element={
+                <ProtectedRoute>
+                  <UserManagement />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/plans"
+              element={
+                <ProtectedRoute>
+                  <PlansManagement />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/logs"
+              element={
+                <ProtectedRoute>
+                  <MessageLogs />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/payments"
+              element={
+                <ProtectedRoute>
+                  <PaymentHistory />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/settings"
+              element={
+                <ProtectedRoute>
+                  <SystemSettings />
+                </ProtectedRoute>
+              }
+            />
+
             {/* Catch-all */}
             <Route path="*" element={<NotFound />} />
           </Routes>

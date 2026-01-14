@@ -123,6 +123,8 @@ model User {
   accountId Int
   account   CustomerAccount @relation(fields: [accountId], references: [id])
 
+  termsAccepted Boolean @default(false)
+
   @@index([isActive, isDeleted])
 }
 

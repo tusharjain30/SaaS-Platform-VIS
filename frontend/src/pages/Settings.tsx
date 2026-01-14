@@ -1,4 +1,12 @@
-import { User, Bell, Shield, CreditCard, Link2, Smartphone, Globe, Palette } from "lucide-react";
+import {
+  User,
+  Bell,
+  Shield,
+  CreditCard,
+  Link2,
+  Smartphone,
+  Globe,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,21 +16,34 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { Header } from "@/components/dashboard/Header";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Settings() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return <div className="p-6">Loading profile...</div>;
+  }
+
+  if (!user) {
+    return <div className="p-6">No user data found</div>;
+  }
+
   return (
     <div className="flex min-h-screen bg-background w-full">
       <Sidebar />
-      
+
       <div className="flex-1 flex flex-col min-w-0">
         <Header />
-        
+
         <main className="flex-1 p-6 overflow-auto">
           <div className="max-w-4xl mx-auto space-y-6">
             {/* Header */}
             <div>
               <h1 className="text-2xl font-bold text-foreground">Settings</h1>
-              <p className="text-muted-foreground">Manage your account and preferences</p>
+              <p className="text-muted-foreground">
+                Manage your account and preferences
+              </p>
             </div>
 
             <Tabs defaultValue="profile" className="space-y-6">
@@ -53,75 +74,109 @@ export default function Settings() {
                 </TabsTrigger>
               </TabsList>
 
-              {/* Profile Tab */}
+              {/* ================= PROFILE TAB ================= */}
               <TabsContent value="profile">
                 <div className="card-elevated p-6 space-y-6">
                   <div>
-                    <h3 className="text-lg font-semibold text-foreground mb-4">Profile Information</h3>
+                    <h3 className="text-lg font-semibold text-foreground mb-4">
+                      Profile Information
+                    </h3>
+
                     <div className="flex items-center gap-6 mb-6">
                       <Avatar className="h-20 w-20">
-                        <AvatarFallback className="bg-primary/10 text-primary text-2xl font-bold">JD</AvatarFallback>
+                        <AvatarFallback className="bg-primary/10 text-primary text-2xl font-bold">
+                          {user.firstName?.[0]}
+                          {user.lastName?.[0]}
+                        </AvatarFallback>
                       </Avatar>
-                      <div>
-                        <Button variant="outline" size="sm">Change Photo</Button>
-                        <p className="text-xs text-muted-foreground mt-2">JPG, PNG or GIF. Max 2MB</p>
-                      </div>
                     </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>First Name</Label>
-                        <Input defaultValue="John" />
+                        <Input value={user.firstName || ""} readOnly />
                       </div>
+
                       <div className="space-y-2">
                         <Label>Last Name</Label>
-                        <Input defaultValue="Doe" />
+                        <Input value={user.lastName || ""} readOnly />
                       </div>
+
                       <div className="space-y-2">
                         <Label>Email</Label>
-                        <Input type="email" defaultValue="john@company.com" />
+                        <Input type="email" value={user.email || ""} readOnly />
                       </div>
+
                       <div className="space-y-2">
                         <Label>Phone</Label>
-                        <Input type="tel" defaultValue="+1 234 567 8900" />
+                        <Input type="tel" value={user.phone || ""} readOnly />
                       </div>
                     </div>
                   </div>
+
                   <Separator />
+
                   <div>
-                    <h3 className="text-lg font-semibold text-foreground mb-4">Company Information</h3>
+                    <h3 className="text-lg font-semibold text-foreground mb-4">
+                      Company Information
+                    </h3>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>Company Name</Label>
-                        <Input defaultValue="Acme Inc." />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Website</Label>
-                        <Input defaultValue="https://acme.com" />
+                        <Input
+                          value={user.account?.companyName || ""}
+                          readOnly
+                        />
                       </div>
                     </div>
-                  </div>
-                  <div className="flex justify-end">
-                    <Button className="gradient-whatsapp text-primary-foreground">Save Changes</Button>
                   </div>
                 </div>
               </TabsContent>
 
-              {/* Notifications Tab */}
+              {/* ================= NOTIFICATIONS TAB ================= */}
               <TabsContent value="notifications">
                 <div className="card-elevated p-6 space-y-6">
-                  <h3 className="text-lg font-semibold text-foreground">Notification Preferences</h3>
+                  <h3 className="text-lg font-semibold text-foreground">
+                    Notification Preferences
+                  </h3>
                   <div className="space-y-4">
                     {[
-                      { title: "New Messages", description: "Get notified when you receive new messages" },
-                      { title: "Broadcast Updates", description: "Updates on your broadcast campaign status" },
-                      { title: "Contact Activity", description: "When contacts engage with your messages" },
-                      { title: "Weekly Reports", description: "Receive weekly performance reports" },
-                      { title: "Product Updates", description: "Stay updated on new features and improvements" },
+                      {
+                        title: "New Messages",
+                        description:
+                          "Get notified when you receive new messages",
+                      },
+                      {
+                        title: "Broadcast Updates",
+                        description:
+                          "Updates on your broadcast campaign status",
+                      },
+                      {
+                        title: "Contact Activity",
+                        description: "When contacts engage with your messages",
+                      },
+                      {
+                        title: "Weekly Reports",
+                        description: "Receive weekly performance reports",
+                      },
+                      {
+                        title: "Product Updates",
+                        description:
+                          "Stay updated on new features and improvements",
+                      },
                     ].map((item, idx) => (
-                      <div key={idx} className="flex items-center justify-between py-3 border-b border-border last:border-0">
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between py-3 border-b border-border last:border-0"
+                      >
                         <div>
-                          <h4 className="font-medium text-foreground">{item.title}</h4>
-                          <p className="text-sm text-muted-foreground">{item.description}</p>
+                          <h4 className="font-medium text-foreground">
+                            {item.title}
+                          </h4>
+                          <p className="text-sm text-muted-foreground">
+                            {item.description}
+                          </p>
                         </div>
                         <Switch defaultChecked={idx < 3} />
                       </div>
@@ -130,14 +185,20 @@ export default function Settings() {
                 </div>
               </TabsContent>
 
-              {/* Security Tab */}
+              {/* ================= SECURITY TAB ================= */}
               <TabsContent value="security">
                 <div className="card-elevated p-6 space-y-6">
-                  <h3 className="text-lg font-semibold text-foreground">Security Settings</h3>
+                  <h3 className="text-lg font-semibold text-foreground">
+                    Security Settings
+                  </h3>
+
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label>Current Password</Label>
-                      <Input type="password" placeholder="Enter current password" />
+                      <Input
+                        type="password"
+                        placeholder="Enter current password"
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label>New Password</Label>
@@ -145,82 +206,98 @@ export default function Settings() {
                     </div>
                     <div className="space-y-2">
                       <Label>Confirm New Password</Label>
-                      <Input type="password" placeholder="Confirm new password" />
+                      <Input
+                        type="password"
+                        placeholder="Confirm new password"
+                      />
                     </div>
                   </div>
+
                   <Separator />
+
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="font-medium text-foreground">Two-Factor Authentication</h4>
-                      <p className="text-sm text-muted-foreground">Add an extra layer of security</p>
+                      <h4 className="font-medium text-foreground">
+                        Two-Factor Authentication
+                      </h4>
+                      <p className="text-sm text-muted-foreground">
+                        Add an extra layer of security
+                      </p>
                     </div>
                     <Button variant="outline">Enable 2FA</Button>
-                  </div>
-                  <div className="flex justify-end">
-                    <Button className="gradient-whatsapp text-primary-foreground">Update Password</Button>
                   </div>
                 </div>
               </TabsContent>
 
-              {/* Billing Tab */}
+              {/* ================= BILLING TAB ================= */}
               <TabsContent value="billing">
                 <div className="space-y-6">
                   <div className="card-elevated p-6">
                     <div className="flex items-center justify-between mb-4">
                       <div>
-                        <h3 className="text-lg font-semibold text-foreground">Current Plan</h3>
-                        <p className="text-muted-foreground">You are on the Pro plan</p>
+                        <h3 className="text-lg font-semibold text-foreground">
+                          Current Plan
+                        </h3>
+                        <p className="text-muted-foreground">
+                          You are on the Pro plan
+                        </p>
                       </div>
                       <Button variant="outline">Upgrade Plan</Button>
-                    </div>
-                    <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="font-semibold text-foreground">Pro Plan</h4>
-                          <p className="text-sm text-muted-foreground">10,000 messages/month</p>
-                        </div>
-                        <span className="text-2xl font-bold text-foreground">$49<span className="text-sm font-normal text-muted-foreground">/mo</span></span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="card-elevated p-6">
-                    <h3 className="text-lg font-semibold text-foreground mb-4">Payment Method</h3>
-                    <div className="flex items-center gap-4 p-4 rounded-xl border border-border">
-                      <div className="p-2 rounded-lg bg-muted">
-                        <CreditCard className="h-6 w-6 text-muted-foreground" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-medium text-foreground">•••• •••• •••• 4242</p>
-                        <p className="text-sm text-muted-foreground">Expires 12/25</p>
-                      </div>
-                      <Button variant="ghost" size="sm">Edit</Button>
                     </div>
                   </div>
                 </div>
               </TabsContent>
 
-              {/* Integrations Tab */}
+              {/* ================= INTEGRATIONS TAB ================= */}
               <TabsContent value="integrations">
                 <div className="card-elevated p-6">
-                  <h3 className="text-lg font-semibold text-foreground mb-6">Connected Apps</h3>
+                  <h3 className="text-lg font-semibold text-foreground mb-6">
+                    Connected Apps
+                  </h3>
                   <div className="space-y-4">
                     {[
-                      { name: "Shopify", description: "Sync your e-commerce store", connected: true },
-                      { name: "HubSpot", description: "CRM integration", connected: true },
-                      { name: "Zapier", description: "Automate workflows", connected: false },
-                      { name: "Slack", description: "Team notifications", connected: false },
+                      {
+                        name: "Shopify",
+                        description: "Sync your e-commerce store",
+                        connected: true,
+                      },
+                      {
+                        name: "HubSpot",
+                        description: "CRM integration",
+                        connected: true,
+                      },
+                      {
+                        name: "Zapier",
+                        description: "Automate workflows",
+                        connected: false,
+                      },
+                      {
+                        name: "Slack",
+                        description: "Team notifications",
+                        connected: false,
+                      },
                     ].map((app, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-4 rounded-xl border border-border">
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between p-4 rounded-xl border border-border"
+                      >
                         <div className="flex items-center gap-4">
                           <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
                             <Globe className="h-5 w-5 text-muted-foreground" />
                           </div>
                           <div>
-                            <h4 className="font-medium text-foreground">{app.name}</h4>
-                            <p className="text-sm text-muted-foreground">{app.description}</p>
+                            <h4 className="font-medium text-foreground">
+                              {app.name}
+                            </h4>
+                            <p className="text-sm text-muted-foreground">
+                              {app.description}
+                            </p>
                           </div>
                         </div>
-                        <Button variant={app.connected ? "outline" : "default"} size="sm">
+                        <Button
+                          variant={app.connected ? "outline" : "default"}
+                          size="sm"
+                        >
                           {app.connected ? "Disconnect" : "Connect"}
                         </Button>
                       </div>
@@ -229,37 +306,26 @@ export default function Settings() {
                 </div>
               </TabsContent>
 
-              {/* WhatsApp Tab */}
+              {/* ================= WHATSAPP TAB ================= */}
               <TabsContent value="whatsapp">
                 <div className="card-elevated p-6 space-y-6">
-                  <h3 className="text-lg font-semibold text-foreground">WhatsApp Business Settings</h3>
+                  <h3 className="text-lg font-semibold text-foreground">
+                    WhatsApp Business Settings
+                  </h3>
                   <div className="p-4 rounded-xl bg-success/5 border border-success/20">
                     <div className="flex items-center gap-3">
                       <div className="p-2 rounded-full bg-success/10">
                         <Smartphone className="h-5 w-5 text-success" />
                       </div>
                       <div>
-                        <h4 className="font-medium text-foreground">Connected</h4>
-                        <p className="text-sm text-muted-foreground">+1 234 567 8900</p>
+                        <h4 className="font-medium text-foreground">
+                          Connected
+                        </h4>
+                        <p className="text-sm text-muted-foreground">
+                          {user.phone}
+                        </p>
                       </div>
                     </div>
-                  </div>
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label>Business Display Name</Label>
-                      <Input defaultValue="Acme Store" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Business Description</Label>
-                      <Input defaultValue="Premium quality products for everyone" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Business Category</Label>
-                      <Input defaultValue="E-commerce" />
-                    </div>
-                  </div>
-                  <div className="flex justify-end">
-                    <Button className="gradient-whatsapp text-primary-foreground">Save Changes</Button>
                   </div>
                 </div>
               </TabsContent>

@@ -1,24 +1,9 @@
 const { z } = require("zod");
 
-/* ---------------- MEDIA FILES ---------------- */
-const mediaFilesSchema = z.object({
-  image: z.string().url().optional(),
-  video: z.string().url().optional(),
-  document: z.string().url().optional(),
-
-  location: z
-    .object({
-      latitude: z.number().optional(),
-      longitude: z.number().optional()
-    })
-    .optional()
-}).optional();
-
 /* ---------------- HEADER ---------------- */
 const headerSchema = z.object({
   type: z.enum(["TEXT", "IMAGE", "VIDEO", "DOCUMENT", "LOCATION"]),
   text: z.string().optional(),
-  url: z.string().url().optional()
 }).superRefine((data, ctx) => {
   if (data.type === "TEXT" && !data.text) {
     ctx.addIssue({
@@ -47,19 +32,16 @@ const callButton = z.object({
   phoneNumber: z.string().min(10)
 });
 
-const buttonsSchema = z
-  .array(
-    z.discriminatedUnion("type", [urlButton, quickReplyButton, callButton])
-  )
-  .max(3, "Maximum 3 buttons allowed")
-  .optional();
+const buttonsSchema = z.array(
+  z.discriminatedUnion("type", [urlButton, quickReplyButton, callButton])
+).max(3).optional();
 
 /* ---------------- FOOTER ---------------- */
 const footerSchema = z.object({
-  text: z.string().min(1, "Footer text cannot be empty")
+  text: z.string().min(1)
 }).optional();
 
-/* ---------------- TEMPLATE MAIN ---------------- */
+/* ---------------- MAIN ---------------- */
 const createTemplateSchema = z.object({
   name: z.string().min(3),
   category: z.enum(["MARKETING", "UTILITY", "AUTHENTICATION"]),
@@ -68,8 +50,7 @@ const createTemplateSchema = z.object({
 
   header: headerSchema.optional(),
   footer: footerSchema,
-  buttons: buttonsSchema,
-  mediaFiles: mediaFilesSchema
+  buttons: buttonsSchema
 });
 
 module.exports = { createTemplateSchema };

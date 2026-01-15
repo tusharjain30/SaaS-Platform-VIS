@@ -17,7 +17,7 @@ const deleteRoute = require("./delete");
 router.use(
     "/create",
     serviceAuth("TEMPLATE"),
-    upload.single("mediaFile"),
+    upload.single("file"),
     parseJSONFields,
     validator(createTemplateSchema, "body"),
     createTemplateRoute

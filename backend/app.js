@@ -8,6 +8,7 @@ const indexRouter = require("./routes");
 const adminRouter = require("./routes/super-admin");
 const userRouter = require("./routes/user");
 
+// Connect frontend
 app.use(
   cors({
     origin: ["http://localhost:8080"],

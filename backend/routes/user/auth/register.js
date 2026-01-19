@@ -93,7 +93,7 @@ router.post("/", async (req, res) => {
         });
 
     } catch (error) {
-        console.log("User Register Error:", err);
+        console.log("User Register Error:", error);
         // Prisma unique constraint error
         if (error.code === "P2002") {
             return res.status(RESPONSE_CODES.ALREADY_EXIST).json({

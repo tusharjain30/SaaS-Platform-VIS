@@ -1,17 +1,27 @@
-const buildTextPayload = (text) => ({
+const buildTextPayload = (text, previewUrl = false) => ({
   type: "text",
   text: {
-    body: text
+    body: text,
+    preview_url: previewUrl
   }
 });
 
-const buildMediaPayload = ({ mediaType, mediaId, caption }) => ({
-  type: mediaType.toLowerCase(),
-  [mediaType.toLowerCase()]: {
-    id: mediaId,
-    caption: caption || undefined
+const buildMediaPayload = ({ mediaType, mediaId, caption }) => {
+  const key = mediaType.toLowerCase();
+
+  const obj = {
+    type: key,
+    [key]: {
+      id: mediaId
+    }
+  };
+
+  if (caption) {
+    obj[key].caption = caption;
   }
-});
+
+  return obj;
+};
 
 const buildButtonPayload = ({ bodyText, buttons }) => ({
   type: "interactive",
@@ -42,7 +52,7 @@ const buildListPayload = ({ bodyText, buttonLabel, sections }) => ({
         rows: sec.rows.map(row => ({
           id: row.rowId,
           title: row.title,
-          description: row.description || ""
+          description: row.description || undefined
         }))
       }))
     }
@@ -58,10 +68,8 @@ const buildCtaPayload = ({ bodyText, text, url }) => ({
       buttons: [
         {
           type: "url",
-          url: {
-            link: url,
-            text
-          }
+          url: url,
+          title: text
         }
       ]
     }
@@ -69,9 +77,9 @@ const buildCtaPayload = ({ bodyText, text, url }) => ({
 });
 
 module.exports = {
-    buildTextPayload,
-    buildMediaPayload,
-    buildButtonPayload,
-    buildListPayload,
-    buildCtaPayload
-}
+  buildTextPayload,
+  buildMediaPayload,
+  buildButtonPayload,
+  buildListPayload,
+  buildCtaPayload
+};

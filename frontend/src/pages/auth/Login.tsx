@@ -10,10 +10,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { MessageSquare, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:4000";
 
@@ -25,6 +25,7 @@ type Errors = {
 export default function Login() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { refetchProfile } = useAuth();
 
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -78,8 +79,9 @@ export default function Login() {
         description: "Welcome back!",
       });
 
+      await refetchProfile();
       navigate("/"); // or /dashboard
-    
+
     } catch (err: any) {
       toast({
         title: "Login failed",

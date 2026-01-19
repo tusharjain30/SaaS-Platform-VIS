@@ -12,6 +12,10 @@ const {
 } = require("../../../../services/Meta/payloadBuilders");
 
 const resolveTrigger = require("../../../../services/Meta/triggerResolver.service");
+const handleTemplateStatusUpdate = require("../../../../services/Meta/handleTemplateStatusUpdate");
+const buildTemplatePayload = require("../../../../services/Meta/buildTemplatePayload");
+
+const normalizeIncomingMessage = require("../../../../services/Meta/normalizeIncomingMessage");
 
 module.exports = async (req, res) => {
   // Meta requires immediate ACK
@@ -28,7 +32,10 @@ module.exports = async (req, res) => {
     if (!value) return;
 
     /* ================= TEMPLATE STATUS ================= */
-    if (value.event === "message_template_status_update") return;
+    if (value.event === "message_template_status_update") {
+      await handleTemplateStatusUpdate(value);
+      return;
+    }
 
     /* ================= INCOMING MESSAGE ================= */
     if (!value.messages || !value.messages.length) return;
@@ -36,23 +43,25 @@ module.exports = async (req, res) => {
     const message = value.messages[0];
     const from = message.from;
     const messageId = message.id;
-    console.log("message:", message);
 
-    /* ---------- DEDUPLICATION (IMPORTANT) ---------- */
+    console.log("📩 Incoming message:", message.type, "from", from);
+
+    /* ---------- DEDUPLICATION ---------- */
     const alreadyLogged = await prisma.messageLog.findFirst({
-      where: {
-        metaMessageId: messageId,
-      },
+      where: { metaMessageId: messageId },
     });
     if (alreadyLogged) return;
 
-    /* ---------- MESSAGE NORMALIZATION ---------- */
-    const text = message.text?.body?.trim().toLowerCase() || null;
+    /* ---------- NORMALIZE ---------- */
+    const normalized = normalizeIncomingMessage(message);
 
-    const buttonPayload =
-      message.button?.payload || message.interactive?.button_reply?.id || null;
-
-    const listPayload = message.interactive?.list_reply?.id || null;
+    const {
+      text,
+      buttonPayload,
+      listPayload,
+      media,
+      location,
+    } = normalized;
 
     /* ---------- FIND USER (MULTI-TENANT) ---------- */
     const phoneNumberId = value.metadata?.phone_number_id;
@@ -70,17 +79,26 @@ module.exports = async (req, res) => {
 
     if (!user) return;
 
-    /* ---------- CONTACT AUTO-CREATE ---------- */
+    /* ---------- CONTACT UPSERT ---------- */
     await prisma.contact.upsert({
-      where: { phone: from },
+      where: {
+        accountId_phone: {
+          accountId: user.accountId,
+          phone: from,
+        },
+      },
       update: {},
-      create: { phone: from },
+      create: {
+        accountId: user.accountId,
+        phone: from,
+      },
     });
 
     /* ---------- LOG INBOUND ---------- */
     await prisma.messageLog.create({
       data: {
-        userId: user.id,
+        accountId: user.accountId,
+        sentByUserId: null, // inbound
         to: from,
         metaMessageId: messageId,
         type: message.type.toUpperCase(),
@@ -92,7 +110,7 @@ module.exports = async (req, res) => {
     /* ---------- ACTIVE BOT ---------- */
     const bot = await prisma.bot.findFirst({
       where: {
-        userId: user.id,
+        accountId: user.accountId,
         isActive: true,
         isDeleted: false,
       },
@@ -103,7 +121,7 @@ module.exports = async (req, res) => {
     /* ---------- SESSION (24h WINDOW) ---------- */
     let session = await prisma.botSession.findFirst({
       where: {
-        userId: user.id,
+        accountId: user.accountId,
         botId: bot.id,
         contact: from,
         isActive: true,
@@ -114,7 +132,7 @@ module.exports = async (req, res) => {
     if (!session) {
       session = await prisma.botSession.create({
         data: {
-          userId: user.id,
+          accountId: user.accountId,
           botId: bot.id,
           contact: from,
           botType: bot.botType,
@@ -131,7 +149,12 @@ module.exports = async (req, res) => {
         botId: bot.id,
         isActive: true,
         parentNodeKey: session.currentNodeKey,
-        OR: resolveTrigger({ text, buttonPayload, listPayload }),
+        OR: resolveTrigger({
+          text,
+          buttonPayload,
+          listPayload,
+          media, // allow media-based triggers too
+        }),
       },
       include: {
         media: true,
@@ -142,11 +165,12 @@ module.exports = async (req, res) => {
           },
         },
         ctaButton: true,
+        template: true, // for template replies
       },
     });
 
     if (!botReply) {
-      await sendWhatsAppMessage({
+      const fallback = await sendWhatsAppMessage({
         phoneNumberId,
         accessToken: process.env.WHATSAPP_ACCESS_TOKEN,
         to: from,
@@ -154,47 +178,67 @@ module.exports = async (req, res) => {
           "Sorry, I didn’t understand that. Please try again."
         ),
       });
+
       return;
     }
 
     /* ---------- PAYLOAD BUILD ---------- */
     let payload;
 
-    if (botReply.replyType === "SIMPLE") {
-      payload = buildTextPayload(botReply.bodyText);
-    }
+    /* ===== TEMPLATE REPLY ===== */
+    if (botReply.templateId && botReply.template) {
+      // TODO: build real variables from contact/session
+      const variables = ["Customer"];
 
-    if (botReply.replyType === "MEDIA" && botReply.media) {
-      payload = buildMediaPayload({
-        mediaType: botReply.media.mediaType,
-        mediaId: botReply.media.metaMediaId,
-        caption: botReply.bodyText,
+      payload = buildTemplatePayload({
+        template: botReply.template,
+        to: from,
+        variables,
       });
+    } else {
+      /* ===== NORMAL REPLIES ===== */
+
+      if (botReply.replyType === "SIMPLE") {
+        payload = buildTextPayload(botReply.bodyText);
+      }
+
+      if (botReply.replyType === "MEDIA" && botReply.media) {
+        payload = buildMediaPayload({
+          mediaType: botReply.media.mediaType,
+          mediaId: botReply.media.metaMediaId,
+          caption: botReply.bodyText,
+        });
+      }
+
+      if (botReply.replyType === "INTERACTIVE") {
+        if (botReply.interactiveType === "REPLY_BUTTONS") {
+          payload = buildButtonPayload({
+            bodyText: botReply.bodyText,
+            buttons: botReply.buttons,
+          });
+        }
+
+        if (botReply.interactiveType === "LIST") {
+          payload = buildListPayload({
+            bodyText: botReply.bodyText,
+            buttonLabel: botReply.listMessage.buttonLabel,
+            sections: botReply.listMessage.sections,
+          });
+        }
+
+        if (botReply.interactiveType === "CTA_URL") {
+          payload = buildCtaPayload({
+            bodyText: botReply.bodyText,
+            text: botReply.ctaButton.displayText,
+            url: botReply.ctaButton.url,
+          });
+        }
+      }
     }
 
-    if (botReply.replyType === "INTERACTIVE") {
-      if (botReply.interactiveType === "REPLY_BUTTONS") {
-        payload = buildButtonPayload({
-          bodyText: botReply.bodyText,
-          buttons: botReply.buttons,
-        });
-      }
-
-      if (botReply.interactiveType === "LIST") {
-        payload = buildListPayload({
-          bodyText: botReply.bodyText,
-          buttonLabel: botReply.listMessage.buttonLabel,
-          sections: botReply.listMessage.sections,
-        });
-      }
-
-      if (botReply.interactiveType === "CTA_URL") {
-        payload = buildCtaPayload({
-          bodyText: botReply.bodyText,
-          text: botReply.ctaButton.displayText,
-          url: botReply.ctaButton.url,
-        });
-      }
+    if (!payload) {
+      console.log("No payload generated");
+      return;
     }
 
     /* ---------- SESSION UPDATE ---------- */
@@ -209,7 +253,7 @@ module.exports = async (req, res) => {
     });
 
     /* ---------- SEND ---------- */
-    await sendWhatsAppMessage({
+    const sendResult = await sendWhatsAppMessage({
       phoneNumberId,
       accessToken: process.env.WHATSAPP_ACCESS_TOKEN,
       to: from,
@@ -219,14 +263,16 @@ module.exports = async (req, res) => {
     /* ---------- LOG OUTBOUND ---------- */
     await prisma.messageLog.create({
       data: {
-        userId: user.id,
+        accountId: user.accountId,
+        sentByUserId: user.id,
         to: from,
-        metaMessageId: response.messages?.[0]?.id ?? null,
+        metaMessageId: sendResult?.messages?.[0]?.id ?? null,
         type: payload.type.toUpperCase(),
         direction: "OUTBOUND",
         payload,
       },
     });
+
   } catch (err) {
     console.error("Meta webhook error:", err);
   }

@@ -2,9 +2,10 @@ const RESPONSE_CODES = require("../../../../config/responseCode");
 const { PrismaClient } = require("../../../../generated/prisma/client");
 const prisma = new PrismaClient();
 const submitTemplateToMeta = require("../../../../services/Meta/submitTemplateToMeta.service");
-const uploadMediaToMeta = require("../../../../services/Meta/uploadMediaToMeta");
+// const uploadMediaToMeta = require("../../../../services/Meta/uploadMediaToMeta");
 
 const express = require("express");
+const uploadTemplateMediaToMeta = require("../../../../services/Meta/uploadTemplateMediaToMeta");
 const router = express.Router();
 
 /* ---------------- VAR EXTRACTOR ---------------- */
@@ -22,7 +23,7 @@ const extractVariables = (body) => {
 /* ---------------- ROUTE ---------------- */
 router.post("/", async (req, res) => {
   try {
-    const { userId, accessTokenId } = req.apiContext;
+    const { accessTokenId, accountId } = req.apiContext;
 
     let {
       name,
@@ -47,13 +48,15 @@ router.post("/", async (req, res) => {
 
     /* -------- DUPLICATE CHECK -------- */
     const exists = await prisma.template.findFirst({
-      where: { userId, name: metaName, language, isDeleted: false },
+      where: { accountId, name: metaName, language, isDeleted: false },
     });
 
     if (exists) {
-      return res.status(400).json({
+      return res.status(RESPONSE_CODES.BAD_REQUEST).json({
         status: 0,
         message: "Template with this name already exists",
+        statusCode: RESPONSE_CODES.BAD_REQUEST,
+        data: {}
       });
     }
 
@@ -71,18 +74,20 @@ router.post("/", async (req, res) => {
           });
         }
 
-        const mediaId = await uploadMediaToMeta({
+        const mediaHandle = await uploadTemplateMediaToMeta({
           filePath: req.file.path,
-          mimeType: req.file.mimetype,
-          phoneNumberId: process.env.PHONE_NUMBER_ID,
           accessToken: process.env.WHATSAPP_ACCESS_TOKEN,
         });
 
         components.push({
           type: "HEADER",
           format: header.type,
-          example: { header_handle: [mediaId] },
+          example: {
+            header_handle: [mediaHandle],
+          },
         });
+
+
       } else if (header.type === "TEXT") {
         const headerComp = {
           type: "HEADER",
@@ -161,12 +166,12 @@ router.post("/", async (req, res) => {
     const template = await prisma.$transaction(async (tx) => {
       const created = await tx.template.create({
         data: {
-          userId,
+          accountId,
           name: metaName,
           category,
           language,
           body,
-          variables,
+          // variables,
           header,
           footer,
           buttons,

@@ -36,7 +36,7 @@ const serviceAuth = (requiredService) => {
                 });
             }
 
-            const { userId, service } = decoded;
+            const { userId, service, accountId } = decoded;
 
             if (service !== requiredService) {
                 return res.status(RESPONSE_CODES.FORBIDDEN).json({
@@ -96,6 +96,7 @@ const serviceAuth = (requiredService) => {
 
             req.apiContext = {
                 userId,
+                accountId,
                 service,
                 accessTokenId: accessToken.id
             };

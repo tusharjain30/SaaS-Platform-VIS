@@ -274,6 +274,8 @@ model BotReply {
   botId Int
   bot   Bot @relation(fields: [botId], references: [id])
 
+  templateId Int?
+
   name String
 
   nodeKey String // unique key like "WELCOME", "ASK_ORDER_ID"

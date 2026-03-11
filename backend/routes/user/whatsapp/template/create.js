@@ -7,6 +7,7 @@ const submitTemplateToMeta = require("../../../../services/Meta/submitTemplateTo
 const express = require("express");
 const uploadTemplateMediaToMeta = require("../../../../services/Meta/uploadTemplateMediaToMeta");
 const router = express.Router();
+const path = require("path");
 
 /* ---------------- VAR EXTRACTOR ---------------- */
 const extractVariables = (body) => {
@@ -78,6 +79,15 @@ router.post("/", async (req, res) => {
           filePath: req.file.path,
           accessToken: process.env.WHATSAPP_ACCESS_TOKEN,
         });
+
+        const publicUrl = `${process.env.APP_BASE_URL || "http://localhost:4000"}/uploads/images/${path.basename(req.file.path)}`;
+
+        header = {
+          ...header,
+          localUrl: publicUrl,
+          mimeType: req.file.mimetype,
+          originalName: req.file.originalname
+        };
 
         components.push({
           type: "HEADER",
@@ -171,7 +181,6 @@ router.post("/", async (req, res) => {
           category,
           language,
           body,
-          // variables,
           header,
           footer,
           buttons,

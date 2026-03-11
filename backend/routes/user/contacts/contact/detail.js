@@ -8,7 +8,7 @@ const prisma = new PrismaClient();
 router.get("/", async (req, res) => {
     try {
         const params = req.validatedParams;
-        const contactId = Number(params.contactId);
+        const contactId = params.contactId;
 
         const { accountId } = req.auth;
 
@@ -31,7 +31,6 @@ router.get("/", async (req, res) => {
                 }
             }
         });
-        console.log(contact)
 
         if (!contact) {
             return res.status(RESPONSE_CODES.NOT_FOUND).json({
@@ -44,7 +43,7 @@ router.get("/", async (req, res) => {
 
         // Normalize groups
         const groups = contact.groups.map(g => ({
-            id: g.group.id,
+            id: g.group.id, 
             title: g.group.title,
             description: g.group.description
         }));

@@ -38,8 +38,15 @@ export default function Login() {
   const validate = () => {
     const e: Errors = {};
 
-    if (!identifier.trim()) e.identifier = "Email or username is required";
-    if (!password) e.password = "Password is required";
+    if (!identifier.trim()) {
+      e.identifier = "Email or username is required";
+    }
+
+    if (!password) {
+      e.password = "Password is required";
+    } else if (password.length < 8) {
+      e.password = "Password must be at least 8 characters";
+    }
 
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -59,7 +66,7 @@ export default function Login() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          identifier,
+          identifier: identifier.trim(),
           password,
           rememberMe,
         }),
@@ -81,7 +88,6 @@ export default function Login() {
 
       await refetchProfile();
       navigate("/"); // or /dashboard
-
     } catch (err: any) {
       toast({
         title: "Login failed",
@@ -124,7 +130,9 @@ export default function Login() {
                   }}
                 />
                 {errors.identifier && (
-                  <p className="text-sm text-red-500">{errors.identifier}</p>
+                  <p className="text-xs text-red-500 pt-1">
+                    {errors.identifier}
+                  </p>
                 )}
               </div>
 
@@ -133,8 +141,10 @@ export default function Login() {
                 <Label>Password</Label>
                 <div className="relative">
                   <Input
+                    name="password"
                     type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
+                    autoComplete="current-password"
                     value={password}
                     onChange={(e) => {
                       setPassword(e.target.value);
@@ -152,7 +162,7 @@ export default function Login() {
                   </Button>
                 </div>
                 {errors.password && (
-                  <p className="text-sm text-red-500">{errors.password}</p>
+                  <p className="text-xs text-red-500 pt-1">{errors.password}</p>
                 )}
               </div>
 

@@ -29,8 +29,7 @@ router.post("/", async (req, res) => {
     const exists = await prisma.contact.findFirst({
       where: {
         accountId,
-        phone: normalizedPhone,
-        isDeleted: false,
+        phone: normalizedPhone
       },
     });
 
@@ -139,6 +138,15 @@ router.post("/", async (req, res) => {
       data: result,
     });
   } catch (error) {
+    if (error.code === "P2002") {
+      return res.status(RESPONSE_CODES.ALREADY_EXIST).json({
+        status: 0,
+        message: "Contact with this phone already exists",
+        statusCode: RESPONSE_CODES.ALREADY_EXIST,
+        data: {},
+      });
+    }
+
     if (error.message?.startsWith("INVALID_GROUP_IDS:")) {
       return res.status(RESPONSE_CODES.BAD_REQUEST).json({
         status: 0,

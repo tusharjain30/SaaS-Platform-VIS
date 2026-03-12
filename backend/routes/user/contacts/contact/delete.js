@@ -9,7 +9,7 @@ router.delete("/", async (req, res) => {
   try {
     const { accountId } = req.auth;
     const params = req.validatedParams;
-    const contactId = Number(params.contactId);
+    const contactId = params.contactId;
 
     /* ---------- CHECK CONTACT OWNERSHIP ---------- */
     const contact = await prisma.contact.findFirst({
@@ -34,19 +34,26 @@ router.delete("/", async (req, res) => {
     await prisma.$transaction(async (tx) => {
       // Delete group mappings
       await tx.contactGroupMap.deleteMany({
-        where: { contactId },
+        where: {
+          accountId,
+          contactId,
+        },
       });
 
       // Delete custom field values
       await tx.contactCustomValue.deleteMany({
         where: {
+          accountId,
           contactId,
         },
       });
 
       // Soft delete contact
       await tx.contact.update({
-        where: { id: contactId },
+        where: {
+          id: contactId,
+          accountId,
+        },
         data: { isDeleted: true },
       });
     });

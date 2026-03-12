@@ -15,7 +15,9 @@ import {
   Users as UsersIcon,
   CreditCard,
   Shield,
+  ChevronDown,
 } from "lucide-react";
+import { MdOutlineGroups } from "react-icons/md";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -44,13 +46,13 @@ function NavItem({ icon: Icon, label, to, badge, collapsed }: NavItemProps) {
         isActive
           ? "bg-primary text-primary-foreground shadow-md"
           : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-        collapsed && "justify-center px-2"
+        collapsed && "justify-center px-2",
       )}
     >
       <Icon
         className={cn(
           "h-5 w-5 flex-shrink-0",
-          isActive && "text-primary-foreground"
+          isActive && "text-primary-foreground",
         )}
       />
       {!collapsed && (
@@ -62,7 +64,7 @@ function NavItem({ icon: Icon, label, to, badge, collapsed }: NavItemProps) {
                 "px-2 py-0.5 rounded-full text-xs font-bold",
                 isActive
                   ? "bg-primary-foreground/20 text-primary-foreground"
-                  : "bg-primary text-primary-foreground"
+                  : "bg-primary text-primary-foreground",
               )}
             >
               {badge}
@@ -79,6 +81,12 @@ export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
 
+  const [contactsOpen, setContactsOpen] = useState(
+    location.pathname.startsWith("/contacts") ||
+      location.pathname.startsWith("/contact-groups") ||
+      location.pathname.startsWith("/contact-fields"),
+  );
+
   const handleLogout = () => {
     logout(); // clears storage + context
     navigate("/login"); // redirect to login
@@ -87,7 +95,7 @@ export function Sidebar() {
   const mainNavItems = [
     { icon: LayoutDashboard, label: "Dashboard", to: "/" },
     { icon: MessageSquare, label: "Inbox", to: "/inbox", badge: 12 },
-    { icon: Users, label: "Contacts", to: "/contacts" },
+    // { icon: Users, label: "Contacts", to: "/contacts" },
     { icon: Megaphone, label: "Broadcasts", to: "/broadcasts" },
   ];
 
@@ -108,7 +116,7 @@ export function Sidebar() {
     <aside
       className={cn(
         "bg-sidebar border-r border-sidebar-border flex flex-col h-screen sticky top-0 transition-all duration-300",
-        collapsed ? "w-[72px]" : "w-64"
+        collapsed ? "w-[72px]" : "w-64",
       )}
     >
       {/* Logo */}
@@ -117,7 +125,7 @@ export function Sidebar() {
           to="/"
           className={cn(
             "flex items-center gap-3",
-            collapsed && "justify-center w-full"
+            collapsed && "justify-center w-full",
           )}
         >
           <div className="h-10 w-10 rounded-xl gradient-whatsapp flex items-center justify-center flex-shrink-0">
@@ -140,7 +148,7 @@ export function Sidebar() {
           onClick={() => setCollapsed(!collapsed)}
           className={cn(
             "w-full justify-center text-muted-foreground hover:text-foreground",
-            !collapsed && "justify-end"
+            !collapsed && "justify-end",
           )}
         >
           {collapsed ? (
@@ -169,6 +177,93 @@ export function Sidebar() {
               collapsed={collapsed}
             />
           ))}
+          {/* Contacts Dropdown */}
+          <div className="space-y-1">
+            <button
+              onClick={() => setContactsOpen(!contactsOpen)}
+              className={cn(
+                "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
+                "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                contactsOpen && "bg-sidebar-accent",
+                collapsed && "justify-center px-2",
+              )}
+            >
+              <Users className="h-5 w-5 flex-shrink-0" />
+
+              {!collapsed && (
+                <>
+                  <span className="flex-1 text-left">Contacts</span>
+
+                  <ChevronDown
+                    className={cn(
+                      "h-4 w-4 transition-transform duration-200",
+                      contactsOpen && "rotate-180",
+                    )}
+                  />
+                </>
+              )}
+            </button>
+
+            {!collapsed && (
+              <div
+                className={cn(
+                  "grid transition-all duration-300 ease-in-out",
+                  contactsOpen
+                    ? "grid-rows-[1fr] opacity-100"
+                    : "grid-rows-[0fr] opacity-0",
+                )}
+              >
+                <div className="overflow-hidden">
+                  <div className="ml-6 mt-1 space-y-1 border-l border-sidebar-border pl-3">
+                    <NavLink
+                      to="/contacts"
+                      className={({ isActive }) =>
+                        cn(
+                          "flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all",
+                          isActive
+                            ? "bg-primary/10 text-primary font-medium"
+                            : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+                        )
+                      }
+                    >
+                      <Users className="h-4 w-4" />
+                      All Contacts
+                    </NavLink>
+
+                    <NavLink
+                      to="/contact-groups"
+                      className={({ isActive }) =>
+                        cn(
+                          "flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all",
+                          isActive
+                            ? "bg-primary/10 text-primary font-medium"
+                            : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+                        )
+                      }
+                    >
+                      <MdOutlineGroups className="h-4 w-4" />
+                      Contact Groups
+                    </NavLink>
+
+                    <NavLink
+                      to="/contact-fields"
+                      className={({ isActive }) =>
+                        cn(
+                          "flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all",
+                          isActive
+                            ? "bg-primary/10 text-primary font-medium"
+                            : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+                        )
+                      }
+                    >
+                      <FileText className="h-4 w-4" />
+                      Custom Fields
+                    </NavLink>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
         <div className="space-y-1">
           {!collapsed && (
@@ -207,7 +302,7 @@ export function Sidebar() {
           className={cn(
             "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
             "text-muted-foreground hover:bg-destructive/10 hover:text-destructive",
-            collapsed && "justify-center px-2"
+            collapsed && "justify-center px-2",
           )}
         >
           <Shield className="h-5 w-5 flex-shrink-0" />
@@ -218,7 +313,7 @@ export function Sidebar() {
         <div
           className={cn(
             "flex items-center gap-3 p-3 mt-3 rounded-xl bg-muted/50",
-            collapsed && "justify-center p-2"
+            collapsed && "justify-center p-2",
           )}
         >
           <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">

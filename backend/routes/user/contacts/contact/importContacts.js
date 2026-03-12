@@ -25,6 +25,7 @@ router.post(
       next();
     });
   },
+
   async (req, res) => {
     const { accountId, userId } = req.auth;
 
@@ -38,18 +39,18 @@ router.post(
     }
 
     const groupIds = req.body.groupIds
-      ? req.body.groupIds.split(",").map(Number)
+      ? req.body.groupIds.split(",").map((id) => id.trim())
       : [];
 
     let total = 0;
-    let inserted = 0;
     let skipped = 0;
 
-    const contactsToInsert = [];
+    const contacts = [];
 
     try {
-      /* ---------------- VERIFY GROUPS ---------------- */
+      /* ---------- VERIFY GROUPS ---------- */
       let validGroupIds = [];
+
       if (groupIds.length) {
         const groups = await prisma.contactGroup.findMany({
           where: {
@@ -59,10 +60,11 @@ router.post(
           },
           select: { id: true },
         });
+
         validGroupIds = groups.map((g) => g.id);
       }
 
-      /* ---------------- READ CSV ---------------- */
+      /* ---------- READ CSV ---------- */
       await new Promise((resolve, reject) => {
         fs.createReadStream(req.file.path)
           .pipe(csv())
@@ -75,7 +77,7 @@ router.post(
               return;
             }
 
-            contactsToInsert.push({
+            contacts.push({
               accountId,
               createdByUserId: userId || null,
               phone,
@@ -91,43 +93,67 @@ router.post(
           .on("error", reject);
       });
 
-      /* ---------------- PROCESS INSERT ---------------- */
-      for (const contact of contactsToInsert) {
-        // Check duplicate inside same account
-        const exists = await prisma.contact.findFirst({
-          where: {
-            phone: contact.phone,
-            accountId,
-            isDeleted: false,
-          },
-          select: { id: true },
-        });
+      /* ---------- REMOVE DUPLICATES ---------- */
+      const phones = contacts.map((c) => c.phone);
 
-        if (exists) {
+      const existing = await prisma.contact.findMany({
+        where: {
+          accountId,
+          phone: { in: phones },
+          isDeleted: false,
+        },
+        select: { phone: true },
+      });
+
+      const existingPhones = new Set(existing.map((c) => c.phone));
+
+      const filteredContacts = contacts.filter((c) => {
+        if (existingPhones.has(c.phone)) {
           skipped++;
-          continue;
+          return false;
         }
+        return true;
+      });
 
-        const created = await prisma.contact.create({
-          data: contact,
-        });
+      /* ---------- BULK INSERT ---------- */
+      const created = await prisma.contact.createMany({
+        data: filteredContacts,
+        skipDuplicates: true,
+      });
 
-        inserted++;
+      /* ---------- FETCH CREATED CONTACTS ---------- */
+      const createdContacts = await prisma.contact.findMany({
+        where: {
+          accountId,
+          phone: { in: filteredContacts.map((c) => c.phone) },
+        },
+        select: { id: true },
+      });
 
-        // Assign groups
-        if (validGroupIds.length) {
-          await prisma.contactGroupMap.createMany({
-            data: validGroupIds.map((groupId) => ({
-              contactId: created.id,
+      /* ---------- GROUP ASSIGN ---------- */
+      if (validGroupIds.length && createdContacts.length) {
+        const mappings = [];
+
+        for (const contact of createdContacts) {
+          for (const groupId of validGroupIds) {
+            mappings.push({
+              accountId,
+              contactId: contact.id,
               groupId,
-            })),
-            skipDuplicates: true,
-          });
+            });
+          }
         }
+
+        await prisma.contactGroupMap.createMany({
+          data: mappings,
+          skipDuplicates: true,
+        });
       }
 
-      // Delete uploaded file
-      fs.unlinkSync(req.file.path);
+      /* ---------- CLEANUP FILE ---------- */
+      if (req.file?.path) {
+        fs.unlink(req.file.path, () => {});
+      }
 
       res.status(RESPONSE_CODES.POST).json({
         status: 1,
@@ -136,22 +162,22 @@ router.post(
         data: {
           summary: {
             total,
-            inserted,
+            inserted: created.count,
             skipped,
           },
         },
       });
     } catch (err) {
       console.error("Import contacts error:", err);
+
       res.status(RESPONSE_CODES.ERROR).json({
         status: 0,
-
         message: "Internal server error",
         statusCode: RESPONSE_CODES.ERROR,
         data: {},
       });
     }
-  }
+  },
 );
 
 module.exports = router;

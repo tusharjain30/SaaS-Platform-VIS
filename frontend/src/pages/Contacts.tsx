@@ -12,6 +12,7 @@ import {
   Trash2,
   Eye,
 } from "lucide-react";
+
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -34,6 +35,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import UpdateContactForm from "@/components/contacts/UpdateContactForm";
+import Swal from "sweetalert2";
+import withReactContent from "sweetalert2-react-content";
+
+const MySwal = withReactContent(Swal);
 
 type Contact = {
   id: string;
@@ -166,6 +171,323 @@ export default function Contacts() {
     }
   };
 
+  const handleDelete = async (contactId: string) => {
+    const result = await MySwal.fire({
+      title: "Delete Contact?",
+      text: "This action cannot be undone.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Yes, delete",
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      const res = await fetch(
+        `${API_BASE}/user/contacts/contact/delete/${contactId}`,
+        {
+          method: "DELETE",
+          headers: getAuthHeaders(),
+        },
+      );
+
+      const json = await res.json();
+
+      if (res.ok && json.status === 1) {
+        await MySwal.fire({
+          icon: "success",
+          title: "Deleted",
+          text: json.message,
+          timer: 1500,
+          showConfirmButton: false,
+        });
+
+        fetchContacts();
+      } else {
+        MySwal.fire({
+          icon: "error",
+          title: "Error",
+          text: json.message || "Failed to delete contact",
+        });
+      }
+    } catch (err) {
+      console.error("Delete contact failed:", err);
+
+      MySwal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Something went wrong",
+      });
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedContacts.length === 0) return;
+
+    const result = await MySwal.fire({
+      title: "Delete Contacts?",
+      text: `You are about to delete ${selectedContacts.length} contact(s).`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Yes, delete",
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/user/contacts/contact/bulk-delete`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          contactIds: selectedContacts,
+        }),
+      });
+
+      const json = await res.json();
+
+      if (res.ok && json.status === 1) {
+        await MySwal.fire({
+          title: "Deleted!",
+          text: json.message,
+          icon: "success",
+          confirmButtonColor: "#22c55e",
+        });
+
+        setSelectedContacts([]);
+        fetchContacts();
+      } else {
+        MySwal.fire({
+          title: "Error",
+          text: json.message || "Failed to delete contacts",
+          icon: "error",
+        });
+      }
+    } catch (err) {
+      console.error("Bulk delete failed:", err);
+
+      MySwal.fire({
+        title: "Error",
+        text: "Something went wrong",
+        icon: "error",
+      });
+    }
+  };
+
+  const handleImportContacts = async () => {
+    const { value: file } = await MySwal.fire({
+      title: "Import Contacts",
+      html: `
+ <div style="text-align:left;font-size:14px">
+
+  <p style="margin-bottom:12px;color:#6b7280">
+    Upload a <b>CSV file</b> to import contacts.
+  </p>
+
+  <label 
+    for="csvFile"
+    style="
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      border:2px dashed #16a34a;
+      background:#f0fdf4;
+      padding:20px;
+      border-radius:10px;
+      cursor:pointer;
+      transition:all 0.2s ease;
+    "
+  >
+    <svg width="36" height="36" fill="#16a34a" viewBox="0 0 24 24">
+      <path d="M19 9h-4V3H9v6H5l7 7 7-7z"></path>
+      <path d="M5 18h14v2H5z"></path>
+    </svg>
+
+    <span style="font-weight:600;margin-top:6px;color:#065f46">
+      Click to upload CSV
+    </span>
+
+    <span style="font-size:12px;color:#6b7280;margin-top:4px">
+      or drag and drop file here
+    </span>
+
+    <input 
+      type="file"
+      id="csvFile"
+      accept=".csv"
+      style="display:none"
+    />
+  </label>
+
+  <div style="
+    margin-top:14px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    background:#f0fdf4;
+    border:1px solid #bbf7d0;
+    padding:10px;
+    border-radius:6px;
+  ">
+    <span style="font-size:13px;color:#166534">
+      Need a template?
+    </span>
+
+    <a 
+      href="/sample-contacts.csv"
+      download
+      style="
+        font-size:13px;
+        font-weight:500;
+        color:#16a34a;
+        text-decoration:underline;
+      "
+    >
+      Download Sample CSV
+    </a>
+  </div>
+
+</div>
+    `,
+      showCancelButton: true,
+      confirmButtonText: "Import Contacts",
+      confirmButtonColor: "#16a34a",
+      cancelButtonText: "Cancel",
+      focusConfirm: false,
+
+      didOpen: () => {
+        const confirmBtn = Swal.getConfirmButton();
+        confirmBtn.disabled = true;
+
+        const input = document.getElementById("csvFile") as HTMLInputElement;
+
+        input?.addEventListener("change", () => {
+          confirmBtn.disabled = !input.files?.length;
+        });
+      },
+
+      preConfirm: () => {
+        const input = document.getElementById("csvFile") as HTMLInputElement;
+
+        if (!input?.files?.length) {
+          Swal.showValidationMessage("Please select a CSV file");
+          return;
+        }
+
+        return input.files[0];
+      },
+    });
+
+    if (!file) return;
+
+    try {
+      const loading = MySwal.fire({
+        title: "Importing Contacts...",
+        text: "Please wait while we process your file.",
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        },
+      });
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch(`${API_BASE}/user/contacts/contact/import`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
+        },
+        body: formData,
+      });
+
+      const json = await res.json();
+
+      Swal.close();
+
+      if (res.ok && json.status === 1) {
+        await MySwal.fire({
+          icon: "success",
+          title: "Import Successful",
+          html: `
+          <div style="text-align:left">
+            <p><b>Inserted:</b> ${json.data.summary.inserted}</p>
+            <p><b>Skipped:</b> ${json.data.summary.skipped}</p>
+          </div>
+        `,
+          confirmButtonColor: "#16a34a",
+        });
+
+        fetchContacts();
+      } else {
+        MySwal.fire({
+          icon: "error",
+          title: "Import Failed",
+          text: json.message || "Something went wrong",
+        });
+      }
+    } catch (err) {
+      console.error(err);
+
+      MySwal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to import contacts",
+      });
+    }
+  };
+
+  const handleExportContacts = async () => {
+    try {
+      const token = localStorage.getItem("auth_token");
+
+      const res = await fetch(`${API_BASE}/user/contacts/contact/export`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) {
+        throw new Error("Export failed");
+      }
+
+      const blob = await res.blob();
+
+      const url = window.URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "contacts.csv";
+
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      window.URL.revokeObjectURL(url);
+
+      MySwal.fire({
+        icon: "success",
+        title: "Export Successful",
+        text: "Contacts CSV downloaded successfully",
+        timer: 1500,
+        showConfirmButton: false,
+      });
+    } catch (err) {
+      console.error("Export contacts error:", err);
+
+      MySwal.fire({
+        icon: "error",
+        title: "Export Failed",
+        text: "Unable to export contacts",
+      });
+    }
+  };
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(search);
@@ -202,13 +524,21 @@ export default function Contacts() {
                 </p>
               </div>
               <div className="flex items-center gap-3">
-                <Button variant="outline" className="gap-2 text-xs">
-                  <Download className="h-4 w-4" />
-                  Export
-                </Button>
-                <Button variant="outline" className="gap-2 text-xs">
+                <Button
+                  variant="outline"
+                  className="gap-2 text-xs"
+                  onClick={handleImportContacts}
+                >
                   <Upload className="h-4 w-4" />
                   Import
+                </Button>
+                <Button
+                  variant="outline"
+                  className="gap-2 text-xs"
+                  onClick={handleExportContacts}
+                >
+                  <Download className="h-4 w-4" />
+                  Export
                 </Button>
                 <Button
                   className="text-xs gradient-whatsapp text-primary-foreground gap-2"
@@ -267,6 +597,23 @@ export default function Contacts() {
 
             {/* Contacts Table */}
             <div className="card-elevated overflow-hidden">
+              {selectedContacts.length > 0 && (
+                <div className="flex items-center justify-between bg-red-50 border border-red-200 px-4 py-2 rounded-md">
+                  <span className="text-sm text-red-600 font-medium">
+                    {selectedContacts.length} contact(s) selected
+                  </span>
+
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="gap-2"
+                    onClick={handleBulkDelete}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Bulk Delete
+                  </Button>
+                </div>
+              )}
               <table className="w-full">
                 <thead className="bg-muted/40">
                   <tr className="border-b border-border">
@@ -475,7 +822,7 @@ export default function Contacts() {
 
                               <DropdownMenuItem
                                 className="flex items-center gap-2 text-red-600 focus:text-red-600 cursor-pointer"
-                                // onClick={() => handleDelete(contact.id)}
+                                onClick={() => handleDelete(contact.id)}
                               >
                                 <Trash2 className="h-4 w-4" />
                                 Delete

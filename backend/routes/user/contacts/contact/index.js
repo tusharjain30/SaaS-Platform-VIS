@@ -18,6 +18,7 @@ const readContactsRoute = require("./read");
 const deleteContactsRoute = require("./delete");
 const bulkDeleteRoute = require("./bulkDelete");
 const importContactsRoute = require("./importContacts");
+const exportContactsRoute = require("./exportContacts");
 const assignGroupsToContactsRoute = require("./assignGroupsToContacts");
 
 router.use("/create", requireAuth, validator(createContactSchema, "body"), createContactRoute);
@@ -27,6 +28,7 @@ router.use("/read", requireAuth, readContactsRoute);
 router.use("/delete/:contactId", requireAuth, validator(deleteContactSchema, "params"), deleteContactsRoute);
 router.use("/bulk-delete", requireAuth, validator(bulkDeleteContactsSchema, "body"), bulkDeleteRoute);
 router.use("/import", requireAuth, importContactsRoute);
+router.use("/export", requireAuth, exportContactsRoute);
 router.use("/assign-groups", requireAuth, validator(assignGroupsToContactsSchema, "body"), assignGroupsToContactsRoute);
 
 module.exports = router;

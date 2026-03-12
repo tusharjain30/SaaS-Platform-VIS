@@ -11,7 +11,7 @@ router.delete("/", async (req, res) => {
     const { contactIds } = req.body;
 
     // Ensure numbers
-    const ids = contactIds.map(Number);
+    const ids = contactIds;
 
     /* ---------- FIND USER CONTACTS ONLY ---------- */
     const contacts = await prisma.contact.findMany({
@@ -46,6 +46,7 @@ router.delete("/", async (req, res) => {
       // Delete custom field values
       await tx.contactCustomValue.deleteMany({
         where: {
+          accountId,
           contactId: { in: validIds },
         },
       });
@@ -54,6 +55,7 @@ router.delete("/", async (req, res) => {
       await tx.contact.updateMany({
         where: {
           id: { in: validIds },
+          accountId,
         },
         data: {
           isDeleted: true,

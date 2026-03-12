@@ -192,6 +192,10 @@ model MessageLog {
   from           String?
   conversationId String?
 
+  messageText String?
+  templateId  String?
+  mediaUrl    String?
+
   errorMessage String?
   price        Float?
   currency     String?
@@ -201,6 +205,8 @@ model MessageLog {
   @@index([accountId])
   @@index([accountId, to])
   @@index([metaMessageId])
+  @@index([conversationId])
+  @@index([accountId, conversationId])
 }
 
 model Template {
@@ -286,8 +292,9 @@ model Bot {
 model BotReply {
   id String @id @default(uuid())
 
-  botId String
-  bot   Bot    @relation(fields: [botId], references: [id])
+  botId     String
+  accountId String
+  bot       Bot    @relation(fields: [botId], references: [id])
 
   templateId String?
 
@@ -328,8 +335,9 @@ model BotReply {
 model BotReplyMedia {
   id String @id @default(uuid())
 
-  replyId String   @unique
-  reply   BotReply @relation(fields: [replyId], references: [id])
+  accountId String
+  replyId   String   @unique
+  reply     BotReply @relation(fields: [replyId], references: [id])
 
   mediaType BotMediaType
 
@@ -359,8 +367,9 @@ model BotReplyButton {
 model BotReplyCTA {
   id String @id @default(uuid())
 
-  replyId String   @unique
-  reply   BotReply @relation(fields: [replyId], references: [id])
+  accountId String
+  replyId   String   @unique
+  reply     BotReply @relation(fields: [replyId], references: [id])
 
   displayText String
   url         String
@@ -371,8 +380,9 @@ model BotReplyCTA {
 model BotReplyList {
   id String @id @default(uuid())
 
-  replyId String   @unique
-  reply   BotReply @relation(fields: [replyId], references: [id])
+  accountId String
+  replyId   String   @unique
+  reply     BotReply @relation(fields: [replyId], references: [id])
 
   buttonLabel String
 
@@ -384,8 +394,9 @@ model BotReplyList {
 model BotReplyListSection {
   id String @id @default(uuid())
 
-  listId String
-  list   BotReplyList @relation(fields: [listId], references: [id])
+  accountId String
+  listId    String
+  list      BotReplyList @relation(fields: [listId], references: [id])
 
   title String
   order Int
@@ -597,6 +608,7 @@ model ContactGroupMap {
   group   ContactGroup @relation(fields: [groupId], references: [id])
 
   @@unique([contactId, groupId])
+  @@index([accountId])
 }
 
 model ContactCustomField {

@@ -5,7 +5,7 @@ const router = express.Router();
 const { PrismaClient } = require("../../../../generated/prisma/client");
 const prisma = new PrismaClient();
 
-router.post("/", async (req, res) => {
+router.delete("/", async (req, res) => {
   try {
     const { accountId } = req.auth;
     const { groupId, contactIds } = req.body;
@@ -28,15 +28,30 @@ router.post("/", async (req, res) => {
       });
     }
 
+    /* ---------------- VERIFY CONTACTS ---------------- */
+    const contacts = await prisma.contact.findMany({
+      where: {
+        id: { in: contactIds },
+        accountId,
+        isDeleted: false,
+      },
+      select: { id: true },
+    });
+
+    if (contacts.length === 0) {
+      return res.status(RESPONSE_CODES.BAD_REQUEST).json({
+        status: 0,
+        message: "No valid contacts found",
+        statusCode: RESPONSE_CODES.BAD_REQUEST,
+        data: {},
+      });
+    }
+
     /* ---------------- DELETE MAPPING ---------------- */
     const result = await prisma.contactGroupMap.deleteMany({
       where: {
         groupId,
         contactId: { in: contactIds },
-        contact: {
-          accountId,
-          isDeleted: false,
-        },
       },
     });
 
@@ -48,6 +63,7 @@ router.post("/", async (req, res) => {
         removedCount: result.count,
       },
     });
+    
   } catch (error) {
     console.error("Remove contacts from group error:", error);
     res.status(RESPONSE_CODES.ERROR).json({

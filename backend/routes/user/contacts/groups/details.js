@@ -9,7 +9,7 @@ router.get("/", async (req, res) => {
   try {
     const { accountId } = req.auth;
     const params = req.validatedParams;
-    const groupId = Number(params.groupId);
+    const groupId = params.groupId;
 
     const group = await prisma.contactGroup.findFirst({
       where: {

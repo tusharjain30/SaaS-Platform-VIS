@@ -43,6 +43,7 @@ import PlansManagement from "./pages/admin/PlansManagement";
 import MessageLogs from "./pages/admin/MessageLogs";
 import PaymentHistory from "./pages/admin/PaymentHistory";
 import SystemSettings from "./pages/admin/SystemSettings";
+import ContactGroups from "./pages/public/ContactGroups";
 
 const queryClient = new QueryClient();
 
@@ -62,6 +63,7 @@ const App = () => (
             <Route path="/integrations" element={<Integrations />} />
             <Route path="/about" element={<About />} />
             <Route path="/contact" element={<Contact />} />
+            <Route path="/contact-groups" element={<ContactGroups />} />
 
             {/* Auth Routes (Only if NOT logged in) */}
             <Route

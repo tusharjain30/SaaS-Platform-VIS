@@ -49,16 +49,13 @@ router.post("/", async (req, res) => {
     }
 
     /* ---------------- PREPARE BULK INSERT ---------------- */
-    const rows = [];
-
-    for (const cId of contactIds) {
-      for (const gId of groupIds) {
-        rows.push({
-          contactId: cId,
-          groupId: gId,
-        });
-      }
-    }
+    const rows = contactIds.flatMap((contactId) =>
+      groupIds.map((groupId) => ({
+        contactId,
+        groupId,
+        accountId,
+      })),
+    );
 
     /* ---------------- BULK INSERT (SKIP DUPLICATES) ---------------- */
     await prisma.contactGroupMap.createMany({
@@ -66,14 +63,20 @@ router.post("/", async (req, res) => {
       skipDuplicates: true,
     });
 
-    res.status(RESPONSE_CODES.GET).json({
+    const result = await prisma.contactGroupMap.createMany({
+      data: rows,
+      skipDuplicates: true,
+    });
+
+    res.status(RESPONSE_CODES.POST).json({
       status: 1,
       message: "Groups assigned to selected contacts successfully",
-      statusCode: RESPONSE_CODES.GET,
+      statusCode: RESPONSE_CODES.POST,
       data: {
         contactsCount: contactIds.length,
         groupsCount: groupIds.length,
         totalAssignmentsAttempted: rows.length,
+        inserted: result.count,
       },
     });
   } catch (error) {

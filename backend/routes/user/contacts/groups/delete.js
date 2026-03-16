@@ -8,8 +8,7 @@ const prisma = new PrismaClient();
 router.delete("/", async (req, res) => {
   try {
     const { accountId } = req.auth;
-    const params = req.validatedParams;
-    const groupId = Number(params.groupId);
+    const { groupId } = req.validatedParams;
 
     const group = await prisma.contactGroup.findFirst({
       where: {

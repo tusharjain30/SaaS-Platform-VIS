@@ -13,7 +13,7 @@ const { deleteGroupSchema } = require("../../../../schema/user/contacts/groups/d
 const { bulkDeleteGroupSchema } = require("../../../../schema/user/contacts/groups/bulkDelete.schema");
 const { readGroupsBodySchema } = require("../../../../schema/user/contacts/groups/read.schema");
 const { removeContactsFromGroupSchema } = require("../../../../schema/user/contacts/groups/removeContactsFromGroup.schema");
-const { getGroupContactsParamsSchema, getGroupContactsQuerySchema } = require("../../../../schema/user/contacts/groups/getGroupContacts.schema");
+const { getGroupContactsQuerySchema, getGroupContactsParamsSchema } = require("../../../../schema/user/contacts/groups/getGroupContacts.schema");
 
 const createGroupRoute = require("./create");
 const updateGroupRoute = require("./update");

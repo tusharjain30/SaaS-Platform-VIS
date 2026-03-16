@@ -1,17 +1,21 @@
 const { z } = require("zod");
 
 const updateGroupSchema = z.object({
-    groupId: z
-        .number({
-            required_error: "Group Id is required",
-            invalid_type_error: "Group Id must be a number",
-        }).int().positive(),
+  groupId: z
+    .string({
+      required_error: "Group Id is required",
+      invalid_type_error: "Group Id must be a string",
+    })
+    .uuid("Invalid Group Id"),
 
-    title: z.string({
-        required_error: "Title is required"
-    }).min(1, "Title is required"),
+  title: z
+    .string({
+      required_error: "Title is required",
+    })
+    .trim()
+    .min(1, "Title is required"),
 
-    description: z.string().optional().nullable()
+  description: z.string().optional().nullable(),
 });
 
 module.exports = { updateGroupSchema };

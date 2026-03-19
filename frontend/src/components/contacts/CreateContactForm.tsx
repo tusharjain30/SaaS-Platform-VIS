@@ -56,6 +56,25 @@ export default function CreateContactForm({ onSuccess }: Props) {
   const [customFields, setCustomFields] = useState<Record<string, string>>({});
   const [groups, setGroups] = useState<Group[]>([]);
 
+  const getInputType = (type: string) => {
+    switch (type) {
+      case "email":
+        return "email";
+      case "number":
+        return "number";
+      case "date":
+        return "date";
+      case "time":
+        return "time";
+      case "datetime":
+        return "datetime-local";
+      case "url":
+        return "url";
+      default:
+        return "text";
+    }
+  };
+
   const formatIndianPhone = (value: string) => {
     const digits = value.replace(/\D/g, "").slice(0, 10);
 
@@ -91,18 +110,18 @@ export default function CreateContactForm({ onSuccess }: Props) {
     }));
   };
 
-  const toggleGroup = (groupId: string) => {
-    setForm((prev) => {
-      const exists = prev.groups.includes(groupId);
+  // const toggleGroup = (groupId: string) => {
+  //   setForm((prev) => {
+  //     const exists = prev.groups.includes(groupId);
 
-      return {
-        ...prev,
-        groups: exists
-          ? prev.groups.filter((g) => g !== groupId)
-          : [...prev.groups, groupId],
-      };
-    });
-  };
+  //     return {
+  //       ...prev,
+  //       groups: exists
+  //         ? prev.groups.filter((g) => g !== groupId)
+  //         : [...prev.groups, groupId],
+  //     };
+  //   });
+  // };
 
   /* ================= CUSTOM FIELD CHANGE ================= */
 
@@ -124,7 +143,7 @@ export default function CreateContactForm({ onSuccess }: Props) {
       const json = await res.json();
 
       if (res.ok && json.status === 1) {
-        setAvailableCustomFields(json.data || []);
+        setAvailableCustomFields(json.data?.items || []);
       }
     } catch (err) {
       console.error("Failed to fetch custom fields:", err);
@@ -163,7 +182,26 @@ export default function CreateContactForm({ onSuccess }: Props) {
     setLoading(true);
 
     const cleanPhone = form.phone.replace(/\D/g, "");
+
+    if (!form.firstName.trim()) {
+      toast.error("First name is required");
+      setLoading(false);
+      return;
+    }
+
+    if (cleanPhone.length !== 10) {
+      toast.error("Enter valid 10 digit phone number");
+      setLoading(false);
+      return;
+    }
+    
     try {
+      const filteredCustomFields = Object.fromEntries(
+        Object.entries(customFields).filter(
+          ([_, value]) => value !== "" && value !== null && value !== undefined,
+        ),
+      );
+
       const payload = {
         firstName: form.firstName,
         lastName: form.lastName,
@@ -173,7 +211,7 @@ export default function CreateContactForm({ onSuccess }: Props) {
         email: form.email,
         isOptedOut: form.isOptedOut,
         groups: form.groups, // selected group IDs
-        customFields: customFields,
+        customFields: filteredCustomFields,
       };
 
       const res = await fetch(`${API_BASE}/user/contacts/contact/create`, {
@@ -320,8 +358,8 @@ export default function CreateContactForm({ onSuccess }: Props) {
             value={groupOptions.filter((option) =>
               form.groups.includes(option.value),
             )}
-            onChange={(selected) => {
-              const ids = selected ? selected.map((item) => item.value) : [];
+            onChange={(selected: any) => {
+              const ids = selected?.map((item: any) => item.value) || [];
 
               setForm((prev) => ({
                 ...prev,
@@ -345,7 +383,7 @@ export default function CreateContactForm({ onSuccess }: Props) {
                   </Label>
 
                   <Input
-                    type={field.type || "text"}
+                    type={getInputType(field.type)}
                     placeholder={field.name}
                     value={customFields[field.key] || ""}
                     onChange={(e) =>

@@ -6,42 +6,58 @@ const { PrismaClient } = require("../../../../generated/prisma/client");
 const prisma = new PrismaClient();
 
 router.get("/", async (req, res) => {
-    try {
-        const { accountId } = req.auth;
-        const { search } = req.validatedQuery || {};
+  try {
+    const { accountId } = req.auth;
+    const { search, page, limit } = req.validatedQuery;
 
-        const where = {
-            accountId,
-            ...(search && {
-                OR: [
-                    { name: { contains: search, mode: "insensitive" } },
-                    { key: { contains: search, mode: "insensitive" } },
-                ],
-            }),
-            isDeleted: false
-        };
+    const cleanSearch = search?.trim();
 
-        const fields = await prisma.contactCustomField.findMany({
-            where,
-            orderBy: { id: "desc" },
-        });
+    const where = {
+      accountId,
+      isDeleted: false,
+      ...(cleanSearch && {
+        OR: [
+          { name: { contains: cleanSearch, mode: "insensitive" } },
+          { key: { contains: cleanSearch, mode: "insensitive" } },
+        ],
+      }),
+    };
 
-        res.status(RESPONSE_CODES.GET).json({
-            status: 1,
-            message: "Custom fields list fetched successfully",
-            statusCode: RESPONSE_CODES.GET,
-            data: fields,
-        });
+    const skip = (page - 1) * limit;
 
-    } catch (err) {
-        console.error("Custom Field List Error:", err);
-        res.status(RESPONSE_CODES.ERROR).json({
-            status: 0,
-            message: "Internal server error",
-            statusCode: RESPONSE_CODES.ERROR,
-            data: {},
-        });
-    }
+    const [fields, total] = await prisma.$transaction([
+      prisma.contactCustomField.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.contactCustomField.count({ where }),
+    ]);
+
+    res.status(RESPONSE_CODES.GET).json({
+      status: 1,
+      message: "Custom fields list fetched successfully",
+      statusCode: RESPONSE_CODES.GET,
+      data: {
+        items: fields,
+        pagination: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+        },
+      },
+    });
+  } catch (err) {
+    console.error("Custom Field List Error:", err);
+    res.status(RESPONSE_CODES.ERROR).json({
+      status: 0,
+      message: "Internal server error",
+      statusCode: RESPONSE_CODES.ERROR,
+      data: {},
+    });
+  }
 });
 
 module.exports = router;

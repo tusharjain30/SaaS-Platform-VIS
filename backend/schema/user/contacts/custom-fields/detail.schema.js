@@ -1,12 +1,11 @@
 const { z } = require("zod");
 
 const customFieldDetailSchema = z.object({
-   fieldId: z
-        .string({
-            required_error: "Field id is required",
-            invalid_type_error: "Field id must be a string",
-        })
-        .regex(/^\d+$/, "Field id must be a valid number"),
+  fieldId: z
+    .string({
+      required_error: "Field id is required",
+    })
+    .uuid("Invalid field id"),
 });
 
 module.exports = {

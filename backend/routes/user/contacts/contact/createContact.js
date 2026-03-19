@@ -9,7 +9,7 @@ router.post("/", async (req, res) => {
   try {
     const { userId, accountId } = req.auth;
 
-    const {
+    let {
       firstName,
       lastName,
       country,
@@ -21,15 +21,22 @@ router.post("/", async (req, res) => {
       customFields,
     } = req.body;
 
-    const normalizedPhone = phone.trim();
+    /* ================= VALIDATION ================= */
+    if (!firstName || !phone) {
+      return res.status(400).json({
+        status: 0,
+        message: "First name and phone are required",
+      });
+    }
 
-    /* ===============================
-           DUPLICATE CHECK (PER ACCOUNT)
-        =============================== */
+    const normalizedPhone = phone.replace(/\D/g, "");
+
+    /* ================= DUPLICATE CHECK ================= */
     const exists = await prisma.contact.findFirst({
       where: {
         accountId,
-        phone: normalizedPhone
+        phone: normalizedPhone,
+        isDeleted: false,
       },
     });
 
@@ -42,26 +49,24 @@ router.post("/", async (req, res) => {
       });
     }
 
-    /* ===============================
-           CREATE IN TRANSACTION
-        =============================== */
+    /* ================= TRANSACTION ================= */
     const result = await prisma.$transaction(async (tx) => {
       /* CREATE CONTACT */
       const contact = await tx.contact.create({
         data: {
           accountId,
           createdByUserId: userId,
-          firstName,
-          lastName,
-          country,
+          firstName: firstName.trim(),
+          lastName: lastName?.trim(),
+          country: country?.trim(),
           phone: normalizedPhone,
-          languageCode,
-          email,
+          languageCode: languageCode?.trim(),
+          email: email?.trim() || null,
           isOptedOut: isOptedOut ?? false,
         },
       });
 
-      /* ASSIGN GROUPS */
+      /* ================= GROUPS ================= */
       if (Array.isArray(groups) && groups.length) {
         const validGroups = await tx.contactGroup.findMany({
           where: {
@@ -83,11 +88,13 @@ router.post("/", async (req, res) => {
           data: validIds.map((gid) => ({
             contactId: contact.id,
             groupId: gid,
+            accountId,
           })),
+          skipDuplicates: true,
         });
       }
 
-      /* SAVE CUSTOM FIELDS */
+      /* ================= CUSTOM FIELDS ================= */
       if (customFields && typeof customFields === "object") {
         const keys = Object.keys(customFields);
 
@@ -107,51 +114,55 @@ router.post("/", async (req, res) => {
             throw new Error("INVALID_CUSTOM_FIELDS:" + invalidKeys.join(","));
           }
 
-          await tx.contactCustomValue.createMany({
-            data: keys.map((key) => ({
+          const dataToInsert = keys.map((key) => {
+            const fieldId = fieldMap.get(key);
+
+            return {
               contactId: contact.id,
-              fieldId: fieldMap.get(key),
-              value: String(customFields[key]),
-            })),
+              fieldId,
+              accountId,
+              value: customFields[key] != null ? String(customFields[key]) : "",
+            };
           });
+
+          if (dataToInsert.length) {
+            await tx.contactCustomValue.createMany({
+              data: dataToInsert,
+              skipDuplicates: true,
+            });
+          }
         }
       }
 
-      /* RETURN FULL CONTACT */
-      return tx.contact.findFirst({
+      /* ================= FINAL RESPONSE ================= */
+      return tx.contact.findUnique({
         where: { id: contact.id },
         include: {
-          groups: {
-            include: { group: true },
-          },
-          customValues: {
-            include: { field: true },
-          },
+          groups: { include: { group: true } },
+          customValues: { include: { field: true } },
         },
       });
     });
 
-    res.status(RESPONSE_CODES.POST).json({
+    return res.status(201).json({
       status: 1,
       message: "Contact created successfully",
-      statusCode: RESPONSE_CODES.POST,
       data: result,
     });
   } catch (error) {
-    if (error.code === "P2002") {
-      return res.status(RESPONSE_CODES.ALREADY_EXIST).json({
+    /* ================= ERRORS ================= */
+
+    if (error?.code === "P2002") {
+      return res.status(409).json({
         status: 0,
         message: "Contact with this phone already exists",
-        statusCode: RESPONSE_CODES.ALREADY_EXIST,
-        data: {},
       });
     }
 
     if (error.message?.startsWith("INVALID_GROUP_IDS:")) {
-      return res.status(RESPONSE_CODES.BAD_REQUEST).json({
+      return res.status(400).json({
         status: 0,
         message: "Some group IDs are invalid",
-        statusCode: RESPONSE_CODES.BAD_REQUEST,
         data: {
           invalidGroupIds: error.message
             .replace("INVALID_GROUP_IDS:", "")
@@ -161,10 +172,9 @@ router.post("/", async (req, res) => {
     }
 
     if (error.message?.startsWith("INVALID_CUSTOM_FIELDS:")) {
-      return res.status(RESPONSE_CODES.BAD_REQUEST).json({
+      return res.status(400).json({
         status: 0,
         message: "Some custom field keys are invalid",
-        statusCode: RESPONSE_CODES.BAD_REQUEST,
         data: {
           invalidKeys: error.message
             .replace("INVALID_CUSTOM_FIELDS:", "")
@@ -175,11 +185,9 @@ router.post("/", async (req, res) => {
 
     console.error("Create contact error:", error);
 
-    res.status(RESPONSE_CODES.ERROR).json({
+    return res.status(500).json({
       status: 0,
       message: "Internal server error",
-      statusCode: RESPONSE_CODES.ERROR,
-      data: {},
     });
   }
 });

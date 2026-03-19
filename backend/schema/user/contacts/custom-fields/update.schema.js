@@ -1,18 +1,20 @@
 const { z } = require("zod");
 
 const updateCustomFieldSchema = z.object({
-    fieldId: z.number({
-        required_error: "Field id is required",
-        invalid_type_error: "Field id must be a number"
-    }).int().positive(),
+  fieldId: z
+    .string({
+      required_error: "Field id is required",
+    })
+    .uuid("Invalid field id"),
 
-    name: z.string({
-        required_error: "Name is required"
-    }).min(1, "Name is required"),
+  name: z
+    .string({ required_error: "Name is required" })
+    .min(3, "Name must be at least 3 characters")
+    .max(50),
 
-    type: z.enum(["text", "number", "email", "url", "date", "time", "datetime"]),
+  type: z.enum(["text", "number", "email", "url", "date", "time", "datetime"]),
 });
 
 module.exports = {
-    updateCustomFieldSchema
+  updateCustomFieldSchema,
 };

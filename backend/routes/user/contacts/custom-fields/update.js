@@ -18,18 +18,24 @@ router.put("/", async (req, res) => {
     const { accountId } = req.auth;
     const { fieldId, name, type } = req.body;
 
-    const newKey = slugify(name);
+    const formattedName = name
+      .toLowerCase()
+      .replace(/\b\w/g, (c) => c.toUpperCase());
 
-    // Check field exists & belongs to user
-    const field = await prisma.contactCustomField.findFirst({
-      where: {
-        id: fieldId,
-        accountId,
-        isDeleted: false,
-      },
+    const newKey = slugify(formattedName);
+
+    if (!newKey) {
+      return res.status(400).json({
+        status: 0,
+        message: "Invalid field name",
+      });
+    }
+
+    const field = await prisma.contactCustomField.findUnique({
+      where: { id: fieldId },
     });
 
-    if (!field) {
+    if (!field || field.accountId !== accountId || field.isDeleted) {
       return res.status(RESPONSE_CODES.NOT_FOUND).json({
         status: 0,
         message: "Custom field not found",
@@ -38,49 +44,35 @@ router.put("/", async (req, res) => {
       });
     }
 
-    const exists = await prisma.contactCustomField.findFirst({
-      where: {
-        accountId,
-        id: {
-          not: fieldId,
+    try {
+      const updated = await prisma.contactCustomField.update({
+        where: { id: fieldId },
+        data: {
+          name: formattedName,
+          key: newKey,
+          type,
         },
-        key: newKey,
-        isDeleted: false,
-      },
-    });
-
-    if (exists) {
-      return res.status(RESPONSE_CODES.BAD_REQUEST).json({
-        status: 0,
-        message: "Custom field with this name already exists",
-        statusCode: RESPONSE_CODES.BAD_REQUEST,
-        data: {},
       });
+
+      res.status(200).json({
+        status: 1,
+        message: "Custom field updated successfully",
+        data: updated,
+      });
+    } catch (err) {
+      if (err.code === "P2002") {
+        return res.status(400).json({
+          status: 0,
+          message: "Custom field already exists",
+        });
+      }
+      throw err;
     }
-
-    // Update
-    const updated = await prisma.contactCustomField.update({
-      where: { id: fieldId },
-      data: {
-        name,
-        key: newKey,
-        type,
-      },
-    });
-
-    res.status(RESPONSE_CODES.GET).json({
-      status: 1,
-      message: "Custom field updated successfully",
-      statusCode: RESPONSE_CODES.GET,
-      data: updated,
-    });
   } catch (err) {
     console.error("Update Custom Field Error:", err);
-    return res.status(RESPONSE_CODES.ERROR).json({
+    return res.status(500).json({
       status: 0,
       message: "Internal server error",
-      statusCode: RESPONSE_CODES.ERROR,
-      data: {},
     });
   }
 });

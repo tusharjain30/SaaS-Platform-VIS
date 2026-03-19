@@ -25,7 +25,7 @@ const validator = (schema, property = "body") => {
                     : req[property];
 
             const parsed = schema.parse(data || {});
-
+        
             if (property === "query") {
                 req.validatedQuery = parsed;
             } else if (property === "params") {

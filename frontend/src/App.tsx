@@ -44,6 +44,7 @@ import MessageLogs from "./pages/admin/MessageLogs";
 import PaymentHistory from "./pages/admin/PaymentHistory";
 import SystemSettings from "./pages/admin/SystemSettings";
 import ContactGroups from "./pages/public/ContactGroups";
+import ContactCustomFields from "./pages/public/ContactCustomFields";
 
 const queryClient = new QueryClient();
 
@@ -64,6 +65,7 @@ const App = () => (
             <Route path="/about" element={<About />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/contact-groups" element={<ContactGroups />} />
+            <Route path="/contact-custom-fields" element={<ContactCustomFields />} />
 
             {/* Auth Routes (Only if NOT logged in) */}
             <Route

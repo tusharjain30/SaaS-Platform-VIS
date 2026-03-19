@@ -8,19 +8,13 @@ const prisma = new PrismaClient();
 router.delete("/", async (req, res) => {
   try {
     const { accountId } = req.auth;
-    const params = req.validatedParams;
-    const fieldId = Number(params.fieldId);
+    const { fieldId } = req.validatedParams;
 
-    /* ---------- CHECK FIELD EXISTS & BELONGS TO USER ---------- */
-    const field = await prisma.contactCustomField.findFirst({
-      where: {
-        id: fieldId,
-        accountId,
-        isDeleted: false,
-      },
+    const field = await prisma.contactCustomField.findUnique({
+      where: { id: fieldId },
     });
 
-    if (!field) {
+    if (!field || field.accountId !== accountId || field.isDeleted) {
       return res.status(RESPONSE_CODES.NOT_FOUND).json({
         status: 0,
         message: "Custom field not found",
@@ -29,37 +23,26 @@ router.delete("/", async (req, res) => {
       });
     }
 
-    /* ---------- TRANSACTION: DELETE VALUES + FIELD ---------- */
-    await prisma.$transaction(async (tx) => {
-      // Delete all values of this field
-      await tx.contactCustomValue.deleteMany({
-        where: {
-          fieldId: fieldId,
-        },
-      });
-
-      // Soft delete field (recommended)
-      await tx.contactCustomField.update({
+    await prisma.$transaction([
+      prisma.contactCustomValue.deleteMany({
+        where: { fieldId },
+      }),
+      prisma.contactCustomField.update({
         where: { id: fieldId },
-        data: {
-          isDeleted: true,
-        },
-      });
-    });
+        data: { isDeleted: true },
+      }),
+    ]);
 
-    res.status(RESPONSE_CODES.GET).json({
+    res.status(200).json({
       status: 1,
-      message: "Custom field and its values deleted successfully",
-      statusCode: RESPONSE_CODES.GET,
+      message: "Custom field deleted successfully",
       data: {},
     });
   } catch (err) {
     console.error("Delete Custom Field Error:", err);
-    res.status(RESPONSE_CODES.ERROR).json({
+    res.status(500).json({
       status: 0,
       message: "Internal server error",
-      statusCode: RESPONSE_CODES.ERROR,
-      data: {},
     });
   }
 });

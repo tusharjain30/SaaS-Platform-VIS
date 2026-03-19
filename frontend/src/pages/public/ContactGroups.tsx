@@ -31,6 +31,7 @@ import RemoveContactsModal from "@/components/contact-groups/RemoveContactsModal
 import EditContactGroupModal from "@/components/contact-groups/EditContactGroupModal";
 import Swal from "sweetalert2";
 import { Checkbox } from "@/components/ui/checkbox";
+import AssignGroupsModal from "@/components/contact-groups/AssignGroupsModal";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:3001";
 
@@ -77,6 +78,7 @@ const ContactGroups = () => {
   const [editDescription, setEditDescription] = useState<string | null>(null);
 
   const [selected, setSelected] = useState<string[]>([]);
+  const [openAssignModal, setOpenAssignModal] = useState(false);
 
   // Debounce search
   useEffect(() => {
@@ -246,13 +248,27 @@ const ContactGroups = () => {
                 </p>
               </div>
 
-              <Button
-                className="gradient-whatsapp text-primary-foreground gap-2 text-xs"
-                onClick={() => setOpenCreateModal(true)}
-              >
-                <Plus className="h-4 w-4" />
-                Create Group
-              </Button>
+              <div className="flex items-center gap-2">
+                {/* Assign Groups Button */}
+                {selected.length !== 0 && (
+                  <Button
+                    onClick={() => setOpenAssignModal(true)}
+                    className="bg-gradient-to-r from-[#134E4A] to-[#0f766e] text-white gap-2 text-xs"
+                  >
+                    <Users className="h-4 w-4" />
+                    Assign Groups to Contacts
+                  </Button>
+                )}
+
+                {/* Create Group */}
+                <Button
+                  className="gradient-whatsapp text-primary-foreground gap-2 text-xs"
+                  onClick={() => setOpenCreateModal(true)}
+                >
+                  <Plus className="h-4 w-4" />
+                  Create Group
+                </Button>
+              </div>
             </div>
 
             {/* Search */}
@@ -271,7 +287,7 @@ const ContactGroups = () => {
                   {search && (
                     <button
                       onClick={() => setSearch("")}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-red-500 transition"
                     >
                       ✕
                     </button>
@@ -591,6 +607,16 @@ const ContactGroups = () => {
           initialDescription={editDescription}
           onClose={() => setOpenEditModal(false)}
           onSuccess={fetchGroups}
+        />
+
+        <AssignGroupsModal
+          open={openAssignModal}
+          onClose={() => setOpenAssignModal(false)}
+          groupIds={selected}
+          onSuccess={() => {
+            fetchGroups();
+            setSelected([]);
+          }}
         />
       </div>
     </div>

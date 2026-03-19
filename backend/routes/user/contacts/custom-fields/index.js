@@ -9,17 +9,20 @@ const { updateCustomFieldSchema } = require("../../../../schema/user/contacts/cu
 const { customFieldDetailSchema } = require("../../../../schema/user/contacts/custom-fields/detail.schema");
 const { listCustomFieldsSchema } = require("../../../../schema/user/contacts/custom-fields/list.schema");
 const { deleteCustomFieldSchema } = require("../../../../schema/user/contacts/custom-fields/delete.schema");
+const { bulkDeleteCustomFieldsSchema } = require("../../../../schema/user/contacts/custom-fields/bulkDeleteSchema");
 
 const createRoute = require("./create");
 const updateRoute = require("./update");
 const detailRoute = require("./detail");
 const listRoute = require("./list");
 const deleteRoute = require("./delete");
+const bulkDeleteRoute = require("./bulkDelete");
 
 router.use("/create", requireAuth, validator(createCustomFieldSchema, "body"), createRoute);
 router.use("/update", requireAuth, validator(updateCustomFieldSchema, "body"), updateRoute);
 router.use("/detail/:fieldId", requireAuth, validator(customFieldDetailSchema, "params"), detailRoute);
 router.use("/list", requireAuth, validator(listCustomFieldsSchema, "query"), listRoute);
 router.use("/delete/:fieldId", requireAuth, validator(deleteCustomFieldSchema, "params"), deleteRoute);
+router.use("/bulk-delete", requireAuth, validator(bulkDeleteCustomFieldsSchema, "body"), bulkDeleteRoute);
 
 module.exports = router;

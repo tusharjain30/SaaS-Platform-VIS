@@ -17,48 +17,61 @@ router.post("/", async (req, res) => {
   try {
     const { accountId, userId } = req.auth;
     const { name, type } = req.body;
-    const key = slugify(name);
 
-    const exists = await prisma.contactCustomField.findFirst({
-      where: {
-        accountId,
-        key,
-        isDeleted: false,
-      },
-    });
+    const normalizedName = name.toLowerCase().trim();
+    const key = slugify(normalizedName);
 
-    if (exists) {
-      return res.status(RESPONSE_CODES.BAD_REQUEST).json({
+    if (!key) {
+      return res.status(400).json({
         status: 0,
-        message: "Custom field with this name already exists",
-        statusCode: RESPONSE_CODES.BAD_REQUEST,
-        data: {},
+        message: "Invalid field name",
       });
     }
 
-    /* -------- CREATE -------- */
-    const field = await prisma.contactCustomField.create({
-      data: {
-        accountId,
-        name,
-        key,
-        type,
-      },
+    // Limit check
+    const count = await prisma.contactCustomField.count({
+      where: { accountId, isDeleted: false },
     });
 
-    res.status(RESPONSE_CODES.POST).json({
-      status: 1,
-      message: "Custom field created successfully",
-      statusCode: RESPONSE_CODES.POST,
-      data: field,
-    });
+    if (count >= 50) {
+      return res.status(400).json({
+        status: 0,
+        message: "Maximum 50 custom fields allowed",
+      });
+    }
+
+    try {
+      const field = await prisma.contactCustomField.create({
+        data: {
+          accountId,
+          name,
+          key,
+          type,
+          // optional:
+          // createdByUserId: userId
+        },
+      });
+
+      res.status(RESPONSE_CODES.POST).json({
+        status: 1,
+        message: "Custom field created successfully",
+        statusCode: RESPONSE_CODES.POST,
+        data: field,
+      });
+    } catch (err) {
+      if (err.code === "P2002") {
+        return res.status(400).json({
+          status: 0,
+          message: "Custom field already exists",
+        });
+      }
+      throw err;
+    }
   } catch (err) {
     console.error("Create custom field error:", err);
-    res.status(RESPONSE_CODES.ERROR).json({
+    res.status(500).json({
       status: 0,
       message: "Internal server error",
-      statusCode: RESPONSE_CODES.ERROR,
-      data: {},
     });
   }
 });

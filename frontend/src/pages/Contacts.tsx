@@ -554,14 +554,30 @@ export default function Contacts() {
             <div className="card-elevated p-4">
               <div className="flex items-center gap-4">
                 <div className="relative flex-1 max-w-md">
+                  {/* Search Icon */}
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
 
+                  {/* Input */}
                   <Input
                     placeholder="Search name, email or phone..."
-                    className="pl-10 bg-muted/50"
+                    className="pl-10 pr-10 bg-muted/50"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                   />
+
+                  {/* Clear Button */}
+                  {search && (
+                    <button
+                      onClick={() => {
+                        setSearch("");
+                        setDebouncedSearch("");
+                        setPage(1);
+                      }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-red-500 transition"
+                    >
+                      ✕
+                    </button>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-muted-foreground">Rows:</span>
@@ -595,25 +611,26 @@ export default function Contacts() {
               </div>
             </div>
 
+            {selectedContacts.length > 0 && (
+              <div className="flex items-center justify-between bg-red-50 border border-red-200 px-4 py-2 rounded-md">
+                <span className="text-sm text-red-600 font-medium">
+                  {selectedContacts.length} contact(s) selected
+                </span>
+
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="gap-2"
+                  onClick={handleBulkDelete}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Bulk Delete
+                </Button>
+              </div>
+            )}
+
             {/* Contacts Table */}
             <div className="card-elevated overflow-hidden">
-              {selectedContacts.length > 0 && (
-                <div className="flex items-center justify-between bg-red-50 border border-red-200 px-4 py-2 rounded-md">
-                  <span className="text-sm text-red-600 font-medium">
-                    {selectedContacts.length} contact(s) selected
-                  </span>
-
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    className="gap-2"
-                    onClick={handleBulkDelete}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    Bulk Delete
-                  </Button>
-                </div>
-              )}
               <table className="w-full">
                 <thead className="bg-muted/40">
                   <tr className="border-b border-border">

@@ -8,18 +8,13 @@ const prisma = new PrismaClient();
 router.get("/", async (req, res) => {
   try {
     const { accountId } = req.auth;
-    const params = req.validatedParams;
-    const fieldId = Number(params.fieldId);
+    const { fieldId } = req.validatedParams;
 
-    const field = await prisma.contactCustomField.findFirst({
-      where: {
-        id: fieldId,
-        accountId,
-        isDeleted: false,
-      },
+    const field = await prisma.contactCustomField.findUnique({
+      where: { id: fieldId },
     });
 
-    if (!field) {
+    if (!field || field.accountId !== accountId || field.isDeleted) {
       return res.status(RESPONSE_CODES.NOT_FOUND).json({
         status: 0,
         message: "Custom field not found",

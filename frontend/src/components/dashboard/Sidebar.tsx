@@ -21,7 +21,7 @@ import { MdOutlineGroups } from "react-icons/md";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import { capitalize } from "@/utils/Capitalize";
@@ -84,7 +84,7 @@ export function Sidebar() {
   const [contactsOpen, setContactsOpen] = useState(
     location.pathname.startsWith("/contacts") ||
       location.pathname.startsWith("/contact-groups") ||
-      location.pathname.startsWith("/contact-fields"),
+      location.pathname.startsWith("/contact-custom-fields"),
   );
 
   const handleLogout = () => {
@@ -111,6 +111,16 @@ export function Sidebar() {
     { icon: Settings, label: "Settings", to: "/settings" },
     { icon: HelpCircle, label: "Help", to: "/help" },
   ];
+
+  useEffect(() => {
+    if (
+      location.pathname.startsWith("/contacts") ||
+      location.pathname.startsWith("/contact-groups") ||
+      location.pathname.startsWith("/contact-custom-fields")
+    ) {
+      setContactsOpen(true);
+    }
+  }, [location.pathname]);
 
   return (
     <aside
@@ -246,7 +256,7 @@ export function Sidebar() {
                     </NavLink>
 
                     <NavLink
-                      to="/contact-fields"
+                      to="/contact-custom-fields"
                       className={({ isActive }) =>
                         cn(
                           "flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all",

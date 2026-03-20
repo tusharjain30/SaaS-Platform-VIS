@@ -711,6 +711,24 @@ model Campaign {
   @@index([accountId])
 }
 
+model TeamInvite {
+  id        String   @id @default(uuid())
+  email     String
+  roleType  RoleType
+  accountId String
+
+  token     String   @unique
+  expiresAt DateTime
+
+  isAccepted Boolean @default(false)
+  isDeleted  Boolean @default(false)
+
+  createdByUserId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 enum TemplateCategory {
   MARKETING
   UTILITY
@@ -748,10 +766,11 @@ enum VerificationStatus {
 }
 
 enum RoleType {
-  SYSTEM_ADMIN // Super Admin
-  INTERNAL_ADMIN // HR, Manager, Sub Admin, Support, etc.
-  CUSTOMER_OWNER // Customer using your platform
-  CUSTOMER_AGENT
+  SYSTEM_ADMIN        // Your platform super admin
+  INTERNAL_ADMIN      // Your company team
+  CUSTOMER_OWNER      // Client owner
+  CUSTOMER_ADMIN      // Client manager
+  CUSTOMER_AGENT      // Client team member
 }
 
 enum ServiceType {

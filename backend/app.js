@@ -6,7 +6,7 @@ require("dotenv").config();
 
 const indexRouter = require("./routes");
 const adminRouter = require("./routes/super-admin");
-const userRouter = require("./routes/user");
+const userRouter = require("./routes/customer-owner");
 
 // Connect frontend
 app.use(
@@ -29,3 +29,4 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
+

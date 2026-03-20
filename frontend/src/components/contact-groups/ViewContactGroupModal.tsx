@@ -77,7 +77,7 @@ const ViewContactGroupModal = ({ open, groupId, onClose }: Props) => {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="w-[95vw] max-w-5xl max-h-[70vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Group Details</DialogTitle>
         </DialogHeader>

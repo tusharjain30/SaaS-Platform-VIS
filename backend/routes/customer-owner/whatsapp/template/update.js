@@ -108,7 +108,7 @@ const buildTemplateComponents = ({ body, header, footer, buttons }) => {
 
 router.put("/", async (req, res) => {
   try {
-    const { accountId } = req.apiContext;
+    const { accountId } = req.auth;
 
     let {
       templateId,
@@ -280,3 +280,4 @@ router.put("/", async (req, res) => {
 });
 
 module.exports = router;
+

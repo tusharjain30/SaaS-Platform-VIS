@@ -6,7 +6,7 @@ const router = express.Router({ mergeParams: true });
 
 router.get("/", async (req, res) => {
   try {
-    const { accountId } = req.apiContext;
+    const { accountId } = req.auth;
     const { templateId } = req.params;
 
     const template = await prisma.template.findFirst({
@@ -63,3 +63,4 @@ router.get("/", async (req, res) => {
 });
 
 module.exports = router;
+

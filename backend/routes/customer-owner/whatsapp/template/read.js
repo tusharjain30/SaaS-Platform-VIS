@@ -6,7 +6,7 @@ const router = express.Router();
 
 router.get("/", async (req, res) => {
   try {
-    const { accountId } = req.apiContext;
+    const { accountId } = req.auth;
 
     let { page = 1, limit = 10, search = "", status, category } = req.query;
 
@@ -86,3 +86,4 @@ router.get("/", async (req, res) => {
 });
 
 module.exports = router;
+

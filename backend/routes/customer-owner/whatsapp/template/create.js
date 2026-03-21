@@ -108,7 +108,7 @@ const buildTemplateComponents = ({ body, header, footer, buttons }) => {
 
 router.post("/", async (req, res) => {
   try {
-    const { accountId, userId } = req.apiContext;
+    const { accountId, userId } = req.auth;
 
     let {
       name,
@@ -232,3 +232,4 @@ router.post("/", async (req, res) => {
 });
 
 module.exports = router;
+

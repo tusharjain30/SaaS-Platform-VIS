@@ -6,7 +6,7 @@ const router = express.Router();
 
 router.delete("/", async (req, res) => {
   try {
-    const { accountId } = req.apiContext;
+    const { accountId } = req.auth;
     const { templateId } = req.body;
 
     const template = await prisma.template.findFirst({
@@ -61,3 +61,4 @@ router.delete("/", async (req, res) => {
 });
 
 module.exports = router;
+

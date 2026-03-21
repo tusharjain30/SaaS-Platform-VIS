@@ -22,7 +22,7 @@ const extractVariables = (body) => {
 
 router.post("/", async (req, res) => {
   try {
-    const { accountId, accessTokenId } = req.apiContext;
+    const { accountId } = req.auth;
     const { templateId } = req.body;
 
     const template = await prisma.template.findFirst({
@@ -201,11 +201,6 @@ router.post("/", async (req, res) => {
         },
       });
 
-      await tx.accessToken.update({
-        where: { id: accessTokenId },
-        data: { usedValue: { increment: 1 } },
-      });
-
       return updated;
     });
 
@@ -227,3 +222,4 @@ router.post("/", async (req, res) => {
 });
 
 module.exports = router;
+

@@ -11,7 +11,7 @@ const RESPONSE_CODES = require("../../../../config/responseCode");
 ================================ */
 router.get("/", async (req, res) => {
     try {
-        const { accountId } = req.apiContext;
+        const { accountId } = req.auth;
 
         let {
             page = 1,
@@ -102,3 +102,4 @@ router.get("/", async (req, res) => {
 });
 
 module.exports = router;
+

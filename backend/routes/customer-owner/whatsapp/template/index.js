@@ -2,7 +2,8 @@ const express = require("express");
 const router = express.Router();
 
 const validator = require("../../../../middleware/validator");
-const serviceAuth = require("../../../../middleware/serviceAuth");
+const requireAuth = require("../../../../middleware/requireAuth");
+const requireOwner = require("../../../../middleware/requireOwner");
 const parseJSONFields = require("../../../../middleware/parseJSONFields");
 const upload = require("../../../../middleware/multerUpload");
 
@@ -35,7 +36,8 @@ const deleteRoute = require("./delete");
 
 router.use(
   "/create",
-  serviceAuth("TEMPLATE"),
+  requireAuth,
+  requireOwner,
   upload.single("file"),
   parseJSONFields,
   validator(createTemplateSchema, "body"),
@@ -44,7 +46,8 @@ router.use(
 
 router.use(
   "/update",
-  serviceAuth("TEMPLATE"),
+  requireAuth,
+  requireOwner,
   upload.single("file"),
   parseJSONFields,
   validator(updateTemplateSchema, "body"),
@@ -53,33 +56,36 @@ router.use(
 
 router.use(
   "/submit",
-  serviceAuth("TEMPLATE"),
+  requireAuth,
+  requireOwner,
   validator(submitTemplateSchema, "body"),
   submitTemplateRoute,
 );
 
 router.use(
   "/duplicate",
-  serviceAuth("TEMPLATE"),
+  requireAuth,
+  requireOwner,
   validator(duplicateTemplateSchema, "body"),
   duplicateTemplateRoute,
 );
 
-router.use("/list", serviceAuth("TEMPLATE"), listRoute);
+router.use("/list", requireAuth, requireOwner, listRoute);
 
 router.use(
   "/detail/:templateId",
-  serviceAuth("TEMPLATE"),
+  requireAuth,
+  requireOwner,
   validator(templateDetailSchema, "params"),
   detailRoute,
 );
 
 router.use(
   "/delete",
-  serviceAuth("TEMPLATE"),
+  requireAuth,
+  requireOwner,
   validator(softDeleteTemplateSchema, "body"),
   deleteRoute,
 );
 
 module.exports = router;
-

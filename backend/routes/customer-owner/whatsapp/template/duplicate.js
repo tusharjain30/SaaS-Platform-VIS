@@ -128,7 +128,7 @@ const getDuplicateName = async ({ accountId, name, language }) => {
 
 router.post("/", async (req, res) => {
   try {
-    const { accountId, userId } = req.apiContext;
+    const { accountId, userId } = req.auth;
     const { templateId } = req.body;
 
     const template = await prisma.template.findFirst({
@@ -204,3 +204,4 @@ router.post("/", async (req, res) => {
 });
 
 module.exports = router;
+

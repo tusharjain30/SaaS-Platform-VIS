@@ -1,5 +1,14 @@
 const { z } = require("zod");
 
+const locationDetailsSchema = z.object({
+  placeName: z.string().optional(),
+  address: z.string().optional(),
+  latitude: z.string().optional(),
+  longitude: z.string().optional(),
+}).optional();
+
+const variableSamplesSchema = z.record(z.string()).optional();
+
 /* ---------------- HEADER ---------------- */
 const headerSchema = z.object({
   type: z.enum(["TEXT", "IMAGE", "VIDEO", "DOCUMENT", "LOCATION"]),
@@ -50,7 +59,9 @@ const createTemplateSchema = z.object({
 
   header: headerSchema.optional(),
   footer: footerSchema,
-  buttons: buttonsSchema
+  buttons: buttonsSchema,
+  variableSamples: variableSamplesSchema,
+  locationDetails: locationDetailsSchema,
 });
 
 module.exports = { createTemplateSchema };

@@ -15,14 +15,16 @@ interface ModalProps {
   description?: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: "sm" | "md" | "lg" | "xl" | "2xl";
+  contentClassName?: string;
 }
 
 const sizeClasses = {
-  sm: 'max-w-sm',
-  md: 'max-w-md',
-  lg: 'max-w-lg',
-  xl: 'max-w-xl',
+  sm: "max-w-sm",
+  md: "max-w-md",
+  lg: "max-w-lg",
+  xl: "max-w-xl",
+  "2xl": "max-w-2xl",
 };
 
 export function Modal({
@@ -32,11 +34,14 @@ export function Modal({
   description,
   children,
   footer,
-  size = 'md',
+  size = "md",
+  contentClassName,
 }: ModalProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={sizeClasses[size]}>
+      <DialogContent
+        className={[sizeClasses[size], contentClassName].filter(Boolean).join(" ")}
+      >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}
@@ -56,7 +61,7 @@ interface ConfirmModalProps {
   onConfirm: () => void;
   confirmText?: string;
   cancelText?: string;
-  variant?: 'default' | 'destructive';
+  variant?: "default" | "destructive";
   loading?: boolean;
 }
 
@@ -66,9 +71,9 @@ export function ConfirmModal({
   title,
   description,
   onConfirm,
-  confirmText = 'Confirm',
-  cancelText = 'Cancel',
-  variant = 'default',
+  confirmText = "Confirm",
+  cancelText = "Cancel",
+  variant = "default",
   loading = false,
 }: ConfirmModalProps) {
   return (
@@ -79,18 +84,22 @@ export function ConfirmModal({
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={loading}
+          >
             {cancelText}
           </Button>
           <Button
-            variant={variant === 'destructive' ? 'destructive' : 'default'}
+            variant={variant === "destructive" ? "destructive" : "default"}
             onClick={() => {
               onConfirm();
               onOpenChange(false);
             }}
             disabled={loading}
           >
-            {loading ? 'Loading...' : confirmText}
+            {loading ? "Loading..." : confirmText}
           </Button>
         </DialogFooter>
       </DialogContent>

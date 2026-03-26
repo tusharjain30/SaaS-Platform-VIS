@@ -26,6 +26,7 @@ router.get("/", async (req, res) => {
         buttons: true,
         components: true,
         mediaFiles: true,
+        builderData: true,
         metaTemplateId: true,
         rejectReason: true,
         status: true,
@@ -63,4 +64,3 @@ router.get("/", async (req, res) => {
 });
 
 module.exports = router;
-

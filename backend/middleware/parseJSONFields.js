@@ -8,7 +8,9 @@ const parseJSONFields = (req, res, next) => {
                 "buttons",
                 "cta",
                 "list",
-                "location"
+                "location",
+                "variableSamples",
+                "locationDetails"
             ];
 
             jsonFields.forEach((field) => {

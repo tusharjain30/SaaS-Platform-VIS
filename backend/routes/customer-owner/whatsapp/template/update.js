@@ -17,7 +17,13 @@ const extractVariables = (text = "") => {
   return variables.length ? variables : null;
 };
 
-const buildTemplateComponents = ({ body, header, footer, buttons }) => {
+const buildTemplateComponents = ({
+  body,
+  header,
+  footer,
+  buttons,
+  variableSamples = {},
+}) => {
   const components = [];
   const bodyVariables = extractVariables(body);
 
@@ -39,8 +45,13 @@ const buildTemplateComponents = ({ body, header, footer, buttons }) => {
         text: header.text,
       };
 
-      if (header.text?.includes("{{")) {
-        headerComponent.example = { header_text: ["Example"] };
+      const headerVariables = extractVariables(header.text || "");
+      if (headerVariables?.length) {
+        headerComponent.example = {
+          header_text: headerVariables.map(
+            (token) => variableSamples[token] || token,
+          ),
+        };
       }
 
       components.push(headerComponent);
@@ -59,7 +70,9 @@ const buildTemplateComponents = ({ body, header, footer, buttons }) => {
 
   if (bodyVariables?.length) {
     bodyComponent.example = {
-      body_text: [bodyVariables.map(() => "Example")],
+      body_text: [
+        bodyVariables.map((token) => variableSamples[token] || token),
+      ],
     };
   }
 
@@ -119,6 +132,8 @@ router.put("/", async (req, res) => {
       header,
       footer,
       buttons,
+      variableSamples = {},
+      locationDetails = {},
     } = req.body;
 
     const existingTemplate = await prisma.template.findFirst({
@@ -156,7 +171,8 @@ router.put("/", async (req, res) => {
       });
     }
 
-    const metaName = name.trim().toLowerCase().replace(/[^a-z0-9_]/g, "_");
+    const originalName = name.trim();
+    const metaName = originalName.toLowerCase().replace(/[^a-z0-9_]/g, "_");
 
     const duplicateTemplate = await prisma.template.findFirst({
       where: {
@@ -177,11 +193,31 @@ router.put("/", async (req, res) => {
       });
     }
 
+    const deletedTemplate = await prisma.template.findFirst({
+      where: {
+        accountId,
+        name: metaName,
+        language,
+        isDeleted: true,
+        id: { not: templateId },
+      },
+    });
+
     let mediaFiles = existingTemplate.mediaFiles || null;
+
+    if (header?.type === "LOCATION") {
+      header = {
+        ...header,
+        locationDetails,
+      };
+    }
 
     if (header && ["IMAGE", "VIDEO", "DOCUMENT"].includes(header.type)) {
       if (req.file) {
-        const baseUrl = (process.env.APP_BASE_URL || `http://localhost:${process.env.PORT || 4000}`).replace(/\/$/, "");
+        const baseUrl = (
+          process.env.APP_BASE_URL ||
+          `http://localhost:${process.env.PORT || 4000}`
+        ).replace(/\/$/, "");
         const uploadFolder = req.uploadFolder || "images";
         const fileName = req.uploadedFileName || req.file.filename;
         const publicUrl = `${baseUrl}/uploads/${uploadFolder}/${fileName}`;
@@ -242,29 +278,76 @@ router.put("/", async (req, res) => {
       header,
       footer,
       buttons,
+      variableSamples,
     });
 
-    const updatedTemplate = await prisma.template.update({
-      where: { id: templateId },
-      data: {
-        name: metaName,
-        category,
-        language,
-        body,
-        header: header || null,
-        footer: footer || null,
-        buttons: buttons || null,
-        components,
-        mediaFiles,
-        status: "DRAFT",
-        metaTemplateId: null,
-        rejectReason: null,
-      },
-    });
+    const builderData = {
+      originalName,
+      normalizedName: metaName,
+      headerType: header?.type || "NONE",
+      headerText: header?.type === "TEXT" ? header.text || "" : "",
+      footerText: footer?.text || "",
+      variableSamples,
+      locationDetails,
+      buttons: buttons || [],
+      language,
+      category,
+      mediaPreview: Array.isArray(mediaFiles) ? mediaFiles[0] || null : null,
+    };
+
+    const templatePayload = {
+      name: metaName,
+      category,
+      language,
+      body,
+      header: header || null,
+      footer: footer || null,
+      buttons: buttons || null,
+      components,
+      mediaFiles,
+      builderData,
+      status: "DRAFT",
+      metaTemplateId: null,
+      rejectReason: null,
+      isActive: true,
+      isDeleted: false,
+    };
+
+    let updatedTemplate;
+
+    if (deletedTemplate) {
+      updatedTemplate = await prisma.$transaction(async (tx) => {
+        const restoredTemplate = await tx.template.update({
+          where: { id: deletedTemplate.id },
+          data: {
+            ...templatePayload,
+            accountId,
+            createdByUserId: existingTemplate.createdByUserId,
+          },
+        });
+
+        await tx.template.update({
+          where: { id: templateId },
+          data: {
+            isDeleted: true,
+            isActive: false,
+          },
+        });
+
+        return restoredTemplate;
+      });
+    } else {
+      updatedTemplate = await prisma.template.update({
+        where: { id: templateId },
+        data: templatePayload,
+      });
+    }
 
     return res.status(RESPONSE_CODES.GET).json({
       status: 1,
-      message: "Template updated successfully",
+      message: deletedTemplate
+        ? "Deleted template restored and updated successfully"
+        : "Template updated successfully",
       statusCode: RESPONSE_CODES.GET,
       data: updatedTemplate,
     });
@@ -280,4 +363,3 @@ router.put("/", async (req, res) => {
 });
 
 module.exports = router;
-

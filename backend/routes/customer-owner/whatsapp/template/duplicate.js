@@ -16,7 +16,7 @@ const extractVariables = (text = "") => {
   return variables.length ? variables : null;
 };
 
-const buildTemplateComponents = ({ body, header, footer, buttons }) => {
+const buildTemplateComponents = ({ body, header, footer, buttons, variableSamples = {} }) => {
   const components = [];
   const bodyVariables = extractVariables(body);
 
@@ -36,8 +36,11 @@ const buildTemplateComponents = ({ body, header, footer, buttons }) => {
         text: header.text,
       };
 
-      if (header.text?.includes("{{")) {
-        headerComponent.example = { header_text: ["Example"] };
+      const headerVariables = extractVariables(header.text || "");
+      if (headerVariables?.length) {
+        headerComponent.example = {
+          header_text: headerVariables.map((token) => variableSamples[token] || token),
+        };
       }
 
       components.push(headerComponent);
@@ -56,7 +59,7 @@ const buildTemplateComponents = ({ body, header, footer, buttons }) => {
 
   if (bodyVariables?.length) {
     bodyComponent.example = {
-      body_text: [bodyVariables.map(() => "Example")],
+      body_text: [bodyVariables.map((token) => variableSamples[token] || token)],
     };
   }
 
@@ -103,13 +106,14 @@ const buildTemplateComponents = ({ body, header, footer, buttons }) => {
   return components;
 };
 
-const getDuplicateName = async ({ accountId, name, language }) => {
-  const baseName = `${name}_copy`;
-  let nextName = baseName;
-  let counter = 2;
+const getDuplicateName = async ({ accountId, name, language, startCounter = 1 }) => {
+  const normalizedBaseName = name.replace(/_copy(?:_\d+)?$/, "");
+  const baseName = `${normalizedBaseName}_copy`;
+  let counter = startCounter;
 
-  while (
-    await prisma.template.findFirst({
+  while (true) {
+    const nextName = counter === 1 ? baseName : `${baseName}_${counter}`;
+    const existingTemplate = await prisma.template.findFirst({
       where: {
         accountId,
         name: nextName,
@@ -117,13 +121,14 @@ const getDuplicateName = async ({ accountId, name, language }) => {
         isDeleted: false,
       },
       select: { id: true },
-    })
-  ) {
-    nextName = `${baseName}_${counter}`;
+    });
+
+    if (!existingTemplate) {
+      return { duplicateName: nextName, nextCounter: counter + 1 };
+    }
+
     counter += 1;
   }
-
-  return nextName;
 };
 
 router.post("/", async (req, res) => {
@@ -148,25 +153,48 @@ router.post("/", async (req, res) => {
       });
     }
 
-    const duplicateName = await getDuplicateName({
-      accountId,
-      name: template.name,
-      language: template.language,
-    });
+    const currentBuilderData = template.builderData || {};
+    const nextHeader =
+      template.header && typeof template.header === "object" && !Array.isArray(template.header)
+        ? Object.fromEntries(
+            Object.entries(template.header).filter(([key, value]) => key !== "mediaHandle" && value !== undefined),
+          )
+        : template.header || null;
 
-    const nextHeader = template.header
-      ? { ...template.header, mediaHandle: undefined }
-      : null;
+    let duplicatedTemplate = null;
+    let duplicateName = null;
+    let nextCounter = 1;
 
-    const nextComponents = buildTemplateComponents({
-      body: template.body,
-      header: nextHeader,
-      footer: template.footer,
-      buttons: template.buttons,
-    });
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      const duplicateResult = await getDuplicateName({
+        accountId,
+        name: template.name,
+        language: template.language,
+        startCounter: nextCounter,
+      });
+      duplicateName = duplicateResult.duplicateName;
+      nextCounter = duplicateResult.nextCounter;
 
-    const duplicatedTemplate = await prisma.template.create({
-      data: {
+      const nextBuilderData = {
+        ...currentBuilderData,
+        originalName: currentBuilderData.originalName
+          ? currentBuilderData.originalName.replace(/ Copy(?: \d+)?$/, "") + " Copy"
+          : duplicateName,
+        normalizedName: duplicateName,
+        mediaPreview: Array.isArray(template.mediaFiles)
+          ? template.mediaFiles[0] || null
+          : null,
+      };
+
+      const nextComponents = buildTemplateComponents({
+        body: template.body,
+        header: nextHeader,
+        footer: template.footer,
+        buttons: template.buttons,
+        variableSamples: nextBuilderData.variableSamples || {},
+      });
+
+      const templatePayload = {
         accountId,
         createdByUserId: userId,
         name: duplicateName,
@@ -178,13 +206,43 @@ router.post("/", async (req, res) => {
         buttons: template.buttons,
         components: nextComponents,
         mediaFiles: template.mediaFiles,
+        builderData: nextBuilderData,
         status: "DRAFT",
         metaTemplateId: null,
         rejectReason: null,
         isActive: true,
         isDeleted: false,
-      },
-    });
+      };
+
+      const deletedTemplate = await prisma.template.findFirst({
+        where: {
+          accountId,
+          name: duplicateName,
+          language: template.language,
+          isDeleted: true,
+        },
+      });
+
+      try {
+        duplicatedTemplate = deletedTemplate
+          ? await prisma.template.update({
+              where: { id: deletedTemplate.id },
+              data: templatePayload,
+            })
+          : await prisma.template.create({
+              data: templatePayload,
+            });
+        break;
+      } catch (error) {
+        if (error?.code !== "P2002") {
+          throw error;
+        }
+      }
+    }
+
+    if (!duplicatedTemplate) {
+      throw new Error("Unable to generate a unique duplicate template name");
+    }
 
     return res.status(RESPONSE_CODES.POST).json({
       status: 1,
@@ -204,4 +262,3 @@ router.post("/", async (req, res) => {
 });
 
 module.exports = router;
-

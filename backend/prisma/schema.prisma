@@ -236,6 +236,9 @@ model Template {
   // Uploaded Media Files (image, document, video, location payload etc)
   mediaFiles Json?
 
+  // UI builder state for fetching/editing templates exactly as created
+  builderData Json?
+
   // Meta / info
   status         TemplateStatus @default(DRAFT)
   metaTemplateId String? // Meta ka template ID
@@ -245,7 +248,8 @@ model Template {
   isActive  Boolean @default(true)
   isDeleted Boolean @default(false)
 
-  bots BotTemplate[]
+  campaigns Campaign[]
+  bots      BotTemplate[]
 
   // Audit
   createdAt DateTime @default(now())
@@ -570,8 +574,9 @@ model Contact {
   isDeleted Boolean  @default(false)
   updatedAt DateTime @updatedAt
 
-  groups       ContactGroupMap[]
-  customValues ContactCustomValue[]
+  groups            ContactGroupMap[]
+  customValues      ContactCustomValue[]
+  campaignAudiences CampaignAudience[]
 
   @@unique([accountId, phone])
 }
@@ -698,17 +703,120 @@ model Campaign {
   accountId String
   account   CustomerAccount @relation(fields: [accountId], references: [id])
 
+  name        String
+  description String?
+
   templateId String
+  template   Template @relation(fields: [templateId], references: [id])
 
-  name String
+  status CampaignStatus @default(DRAFT)
 
-  status String
-
+  // Scheduling
+  isScheduled Boolean   @default(false)
   scheduledAt DateTime?
+
+  // Execution control
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  // Stats (fast access)
+  totalContacts  Int @default(0)
+  sentCount      Int @default(0)
+  deliveredCount Int @default(0)
+  readCount      Int @default(0)
+  failedCount    Int @default(0)
+
+  // Settings
+  batchSize      Int @default(50)
+  delayInSeconds Int @default(2)
+
+  createdByUserId String?
+
+  createdAt DateTime @default(now())
+  isDeleted Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+
+  audiences CampaignAudience[]
+  logs      CampaignLog[]
+
+  @@index([accountId, status])
+}
+
+model CampaignAudience {
+  id String @id @default(uuid())
+
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id])
+
+  contactId String
+  contact   Contact @relation(fields: [contactId], references: [id])
+
+  status CampaignContactStatus @default(PENDING)
+
+  // personalization snapshot
+  payload Json?
+
+  sentAt      DateTime?
+  deliveredAt DateTime?
+  readAt      DateTime?
+  failedAt    DateTime?
+
+  errorMessage String?
 
   createdAt DateTime @default(now())
 
-  @@index([accountId])
+  @@unique([campaignId, contactId])
+  @@index([campaignId, status])
+}
+
+model CampaignLog {
+  id String @id @default(uuid())
+
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id])
+
+  type    CampaignLogType
+  message String?
+
+  meta Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([campaignId])
+}
+
+model CampaignJob {
+  id String @id @default(uuid())
+
+  campaignId String
+
+  batchNumber  Int
+  totalRecords Int
+
+  status JobStatus @default(PENDING)
+
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  errorMessage String?
+
+  createdAt DateTime @default(now())
+
+  @@index([campaignId, status])
+}
+
+model CampaignMessage {
+  id String @id @default(uuid())
+
+  campaignId   String
+  contactId    String
+  messageLogId String?
+
+  status CampaignContactStatus
+
+  createdAt DateTime @default(now())
+
+  @@index([campaignId])
 }
 
 model TeamInvite {
@@ -766,11 +874,11 @@ enum VerificationStatus {
 }
 
 enum RoleType {
-  SYSTEM_ADMIN        // Your platform super admin
-  INTERNAL_ADMIN      // Your company team
-  CUSTOMER_OWNER      // Client owner
-  CUSTOMER_ADMIN      // Client manager
-  CUSTOMER_AGENT      // Client team member
+  SYSTEM_ADMIN // Your platform super admin
+  INTERNAL_ADMIN // Your company team
+  CUSTOMER_OWNER // Client owner
+  CUSTOMER_ADMIN // Client manager
+  CUSTOMER_AGENT // Client team member
 }
 
 enum ServiceType {
@@ -823,4 +931,36 @@ enum BotType {
   SIMPLE
   FLOW
   AI
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  RUNNING
+  PAUSED
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum CampaignContactStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+  SKIPPED
+}
+
+enum CampaignLogType {
+  INFO
+  ERROR
+  WARNING
+}
+
+enum JobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
 }

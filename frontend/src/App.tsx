@@ -42,6 +42,7 @@ import PaymentHistory from "./pages/admin/PaymentHistory";
 import SystemSettings from "./pages/admin/SystemSettings";
 import ContactGroups from "./pages/public/ContactGroups";
 import ContactCustomFields from "./pages/public/ContactCustomFields";
+import TemplatePreviewPage from "./components/template/TemplatePreviewPage";
 
 const queryClient = new QueryClient();
 
@@ -69,6 +70,7 @@ const App = () => (
             <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
             <Route path="/inbox" element={<ProtectedRoute><Inbox /></ProtectedRoute>} />
             <Route path="/contacts" element={<ProtectedRoute><Contacts /></ProtectedRoute>} />
+            <Route path="/templates/preview/:id" element={<TemplatePreviewPage />} />
             <Route path="/broadcasts" element={<ProtectedRoute><Broadcasts /></ProtectedRoute>} />
             <Route path="/chatbots" element={<ProtectedRoute><Chatbots /></ProtectedRoute>} />
             <Route path="/templates" element={<ProtectedRoute><Templates /></ProtectedRoute>} />

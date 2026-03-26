@@ -17,7 +17,7 @@ const extractVariables = (text = "") => {
   return variables.length ? variables : null;
 };
 
-const buildTemplateComponents = ({ body, header, footer, buttons }) => {
+const buildTemplateComponents = ({ body, header, footer, buttons, variableSamples = {} }) => {
   const components = [];
   const bodyVariables = extractVariables(body);
 
@@ -39,8 +39,11 @@ const buildTemplateComponents = ({ body, header, footer, buttons }) => {
         text: header.text,
       };
 
-      if (header.text?.includes("{{")) {
-        headerComponent.example = { header_text: ["Example"] };
+      const headerVariables = extractVariables(header.text || "");
+      if (headerVariables?.length) {
+        headerComponent.example = {
+          header_text: headerVariables.map((token) => variableSamples[token] || token),
+        };
       }
 
       components.push(headerComponent);
@@ -59,7 +62,7 @@ const buildTemplateComponents = ({ body, header, footer, buttons }) => {
 
   if (bodyVariables?.length) {
     bodyComponent.example = {
-      body_text: [bodyVariables.map(() => "Example")],
+      body_text: [bodyVariables.map((token) => variableSamples[token] || token)],
     };
   }
 
@@ -118,9 +121,12 @@ router.post("/", async (req, res) => {
       header,
       footer,
       buttons,
+      variableSamples = {},
+      locationDetails = {},
     } = req.body;
 
-    const metaName = name.trim().toLowerCase().replace(/[^a-z0-9_]/g, "_");
+    const originalName = name.trim();
+    const metaName = originalName.toLowerCase().replace(/[^a-z0-9_]/g, "_");
 
     if (category === "AUTHENTICATION" && buttons?.length) {
       return res.status(RESPONSE_CODES.BAD_REQUEST).json({
@@ -149,7 +155,23 @@ router.post("/", async (req, res) => {
       });
     }
 
+    const deletedTemplate = await prisma.template.findFirst({
+      where: {
+        accountId,
+        name: metaName,
+        language,
+        isDeleted: true,
+      },
+    });
+
     let mediaFiles = null;
+
+    if (header?.type === "LOCATION") {
+      header = {
+        ...header,
+        locationDetails,
+      };
+    }
 
     if (header && ["IMAGE", "VIDEO", "DOCUMENT"].includes(header.type)) {
       if (!req.file) {
@@ -191,32 +213,55 @@ router.post("/", async (req, res) => {
       header,
       footer,
       buttons,
+      variableSamples,
     });
 
-    const template = await prisma.template.create({
-      data: {
-        accountId,
-        createdByUserId: userId,
-        name: metaName,
-        category,
-        language,
-        body,
-        header,
-        footer,
-        buttons,
-        components,
-        mediaFiles,
-        status: "DRAFT",
-        metaTemplateId: null,
-        rejectReason: null,
-        isActive: true,
-        isDeleted: false,
-      },
-    });
+    const builderData = {
+      originalName,
+      normalizedName: metaName,
+      headerType: header?.type || "NONE",
+      headerText: header?.type === "TEXT" ? header.text || "" : "",
+      footerText: footer?.text || "",
+      variableSamples,
+      locationDetails,
+      buttons: buttons || [],
+      language,
+      category,
+      mediaPreview: Array.isArray(mediaFiles) ? mediaFiles[0] || null : null,
+    };
+
+    const templatePayload = {
+      accountId,
+      createdByUserId: userId,
+      name: metaName,
+      category,
+      language,
+      body,
+      header,
+      footer,
+      buttons,
+      components,
+      mediaFiles,
+      builderData,
+      status: "DRAFT",
+      metaTemplateId: null,
+      rejectReason: null,
+      isActive: true,
+      isDeleted: false,
+    };
+
+    const template = deletedTemplate
+      ? await prisma.template.update({
+          where: { id: deletedTemplate.id },
+          data: templatePayload,
+        })
+      : await prisma.template.create({
+          data: templatePayload,
+        });
 
     res.status(RESPONSE_CODES.POST).json({
       status: 1,
-      message: "Template created and saved successfully",
+      message: deletedTemplate ? "Deleted template restored successfully" : "Template created and saved successfully",
       statusCode: RESPONSE_CODES.POST,
       data: template,
     });
@@ -232,4 +277,3 @@ router.post("/", async (req, res) => {
 });
 
 module.exports = router;
-

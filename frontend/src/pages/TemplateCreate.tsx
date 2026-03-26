@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Modal } from "@/components/shared/Modal";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertCircle,
@@ -48,6 +49,7 @@ import {
   X,
 } from "lucide-react";
 import Swal from "sweetalert2";
+import { useLocation } from "react-router-dom";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:4000";
 const AUTOSAVE_KEY = "template-create-draft-v2";
@@ -215,9 +217,17 @@ const fileSizeLabel = (size: number) => {
 };
 
 export default function TemplateCreate() {
+  const location = useLocation();
+  const editingTemplate = location.state?.template || null;
+  const isEditMode = !!editingTemplate;
+
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isCreating, setIsCreating] = useState(false);
+  const [isQuickStartModalOpen, setIsQuickStartModalOpen] = useState(false);
+  const [selectedPresetTitle, setSelectedPresetTitle] = useState<string | null>(
+    null,
+  );
   const [isDirty, setIsDirty] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<string>("");
   const [newTemplate, setNewTemplate] =
@@ -263,10 +273,13 @@ export default function TemplateCreate() {
       : null;
 
   useEffect(() => {
+    if (isEditMode) return; // ❗ IMPORTANT
+
+    const saved = localStorage.getItem(AUTOSAVE_KEY);
+    if (!saved) return;
+
     try {
-      const saved = localStorage.getItem(AUTOSAVE_KEY);
-      if (!saved) return;
-      const parsed = JSON.parse(saved) as SavedDraft;
+      const parsed = JSON.parse(saved);
       if (parsed?.template) {
         setNewTemplate({ ...defaultNewTemplate, ...parsed.template });
         setVariableSamples(parsed.variableSamples || {});
@@ -277,7 +290,7 @@ export default function TemplateCreate() {
         setLastSavedAt("Restored from autosave");
       }
     } catch {}
-  }, []);
+  }, [isEditMode]);
 
   useEffect(() => {
     const payload: SavedDraft = {
@@ -505,6 +518,16 @@ export default function TemplateCreate() {
     newTemplate.headerType === (preset.headerType || "NONE") &&
     JSON.stringify(newTemplate.buttons) === JSON.stringify(preset.buttons);
 
+  const openQuickStartModal = () => {
+    const activePreset = templatePresets.find((preset) =>
+      isPresetActive(preset),
+    );
+    setSelectedPresetTitle(
+      activePreset?.title || templatePresets[0]?.title || null,
+    );
+    setIsQuickStartModalOpen(true);
+  };
+
   const applyPreset = (preset: (typeof templatePresets)[number]) => {
     setNewTemplate((current) => ({
       ...current,
@@ -523,7 +546,10 @@ export default function TemplateCreate() {
         latitude: "12.9716",
         longitude: "77.5946",
       });
+    } else {
+      setLocationDetails(defaultLocationDetails);
     }
+    setIsQuickStartModalOpen(false);
   };
 
   const insertVariable = (token: string, target: "body" | "header") => {
@@ -647,6 +673,9 @@ export default function TemplateCreate() {
     try {
       setIsCreating(true);
       const formData = new FormData();
+      if (isEditMode) {
+        formData.append("templateId", editingTemplate.id);
+      }
       formData.append("name", newTemplate.name.trim());
       formData.append("category", newTemplate.category);
       formData.append("language", newTemplate.language);
@@ -656,7 +685,9 @@ export default function TemplateCreate() {
         const headerPayload =
           newTemplate.headerType === "TEXT"
             ? { type: "TEXT", text: newTemplate.headerText.trim() }
-            : { type: newTemplate.headerType };
+            : newTemplate.headerType === "LOCATION"
+              ? { type: "LOCATION", locationDetails }
+              : { type: newTemplate.headerType };
         formData.append("header", JSON.stringify(headerPayload));
       }
       if (newTemplate.footerText.trim())
@@ -679,11 +710,18 @@ export default function TemplateCreate() {
           ),
         );
       }
+      formData.append("variableSamples", JSON.stringify(variableSamples));
+      formData.append("locationDetails", JSON.stringify(locationDetails));
       if (headerFile) formData.append("file", headerFile);
 
       const token = localStorage.getItem("auth_token");
-      const res = await fetch(`${API_BASE}/user/whatsapp/template/create`, {
-        method: "POST",
+      const url = isEditMode
+        ? `${API_BASE}/user/whatsapp/template/update`
+        : `${API_BASE}/user/whatsapp/template/create`;
+
+      const method = isEditMode ? "PUT" : "POST";
+      const res = await fetch(url, {
+        method,
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
@@ -746,6 +784,49 @@ export default function TemplateCreate() {
       );
     }
 
+    useEffect(() => {
+      if (!editingTemplate) return;
+
+      if (editingTemplate?.status === "approved") {
+        toast({
+          title: "Not allowed",
+          description: "Approved templates cannot be edited",
+          variant: "destructive",
+        });
+        navigate("/templates");
+        return;
+      }
+
+      setNewTemplate({
+        name: editingTemplate.name,
+        category: editingTemplate.category,
+        body: editingTemplate.content,
+        language: editingTemplate.language,
+        headerType: editingTemplate.headerText ? "TEXT" : "NONE",
+        headerText: editingTemplate.headerText || "",
+        footerText: editingTemplate.footerText || "",
+        buttons: editingTemplate.buttons || [],
+      });
+    }, [editingTemplate]);
+
+    useEffect(() => {
+      if (!isEditMode) {
+        setNewTemplate(defaultNewTemplate);
+        setHeaderFile(null);
+        setVariableSamples({});
+        setLocationDetails(defaultLocationDetails);
+      }
+    }, [isEditMode]);
+
+    useEffect(() => {
+      if (!editingTemplate) {
+        setNewTemplate(defaultNewTemplate);
+        setHeaderFile(null);
+        setVariableSamples({});
+        setLocationDetails(defaultLocationDetails);
+      }
+    }, [editingTemplate]);
+
     return (
       <div className="rounded-xl border bg-muted/30 p-4">
         <div className="flex items-start gap-3">
@@ -763,6 +844,33 @@ export default function TemplateCreate() {
       </div>
     );
   }, [headerFile, headerFilePreviewUrl, isMediaHeader, newTemplate.headerType]);
+
+  useEffect(() => {
+    if (!editingTemplate) return;
+
+    // Prevent editing approved template
+    if (editingTemplate?.status === "approved") {
+      toast({
+        title: "Not allowed",
+        description: "Approved templates cannot be edited",
+        variant: "destructive",
+      });
+      navigate("/templates");
+      return;
+    }
+
+    // Prefill form
+    setNewTemplate({
+      name: editingTemplate.name,
+      category: editingTemplate.category,
+      body: editingTemplate.content,
+      language: editingTemplate.language,
+      headerType: editingTemplate.headerText ? "TEXT" : "NONE",
+      headerText: editingTemplate.headerText || "",
+      footerText: editingTemplate.footerText || "",
+      buttons: editingTemplate.buttons || [],
+    });
+  }, [editingTemplate]);
 
   return (
     <div className="flex min-h-screen w-full">
@@ -782,7 +890,7 @@ export default function TemplateCreate() {
               </Button>
               <div>
                 <h1 className="text-3xl font-bold text-foreground">
-                  Create Template
+                  {isEditMode ? "Edit Template" : "Create Template"}
                 </h1>
                 <p className="text-muted-foreground">
                   Dedicated full-page builder for rich WhatsApp templates with
@@ -803,7 +911,7 @@ export default function TemplateCreate() {
 
           <div className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
             <div className="space-y-5">
-              <Card>
+              {/* <Card>
                 <CardHeader>
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div>
@@ -812,76 +920,168 @@ export default function TemplateCreate() {
                         Quick Starts
                       </CardTitle>
                       <CardDescription>
-                        Start from a polished preset and customize it instead of building from scratch.
+                        Open a focused modal to start from a polished preset
+                        instead of building from scratch.
                       </CardDescription>
                     </div>
-                    <div className="rounded-xl border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-                      {templatePresets.length} ready-to-use starting points
+                    <div className="flex items-center gap-2">
+                      <div className="rounded-xl border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                        {templatePresets.length} ready-to-use starting points
+                      </div>
+                      <Button
+                        type="button"
+                        onClick={() => setIsQuickStartModalOpen(true)}
+                      >
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        Open Quick Starts
+                        </Button>
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="rounded-2xl border bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-4">
+                <CardContent>
+                  <div className="rounded-2xl border border-dashed bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-4">
                     <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                       <div>
-                        <p className="text-sm font-medium text-foreground">Preset-powered setup</p>
-                        <p className="text-sm text-muted-foreground">Each preset pre-fills message structure, category, footer, and buttons for a faster start.</p>
+                        <p className="text-sm font-medium text-foreground">
+                          Preset-powered setup
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Choose a quick-start preset in the modal, then
+                          fine-tune the body, header, buttons, and samples here.
+                        </p>
                       </div>
-                      <Badge variant="secondary" className="w-fit">Recommended for faster setup</Badge>
+                      <Badge variant="secondary" className="w-fit">
+                        Recommended for faster setup
+                      </Badge>
                     </div>
                   </div>
-                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-2">
+                </CardContent>
+              </Card> */}
+
+              {/* <Modal
+                open={isQuickStartModalOpen}
+                onOpenChange={setIsQuickStartModalOpen}
+                title="Quick Start Presets"
+                description="Pick a polished starting point and continue customizing it in the builder."
+                size="2xl"
+                contentClassName="max-h-[88vh] overflow-hidden p-0 sm:max-w-5xl p-2"
+              >
+                <div className="flex max-h-[88vh] flex-col">
+                  <div className="overflow-y-auto px-6 pb-6 pt-2">
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                     {templatePresets.map((preset, index) => {
                       const isActive = isPresetActive(preset);
-                      const presetHeader = preset.headerType ? formatLabel(preset.headerType) : "Text Only";
+                      const isSelected = selectedPresetTitle === preset.title;
+                      const presetHeader = preset.headerType
+                        ? formatLabel(preset.headerType)
+                        : "Text Only";
                       return (
-                        <button
+                        <div
                           key={preset.title}
-                          type="button"
-                          onClick={() => applyPreset(preset)}
-                          className={`group rounded-2xl border p-5 text-left transition-all hover:-translate-y-0.5 hover:shadow-sm ${isActive ? "border-primary bg-primary/5 shadow-sm ring-1 ring-primary/20" : "border-border bg-background hover:border-primary/40 hover:bg-muted/30"}`}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => setSelectedPresetTitle(preset.title)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              setSelectedPresetTitle(preset.title);
+                            }
+                          }}
+                          className={`group rounded-2xl border p-5 text-left transition-all hover:-translate-y-0.5 hover:shadow-sm cursor-pointer ${isSelected ? "border-primary bg-primary/5 shadow-sm ring-1 ring-primary/20" : "border-border bg-background hover:border-primary/40 hover:bg-muted/30"}`}
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div>
                               <div className="flex flex-wrap items-center gap-2">
-                                <p className="text-base font-semibold text-foreground">{preset.title}</p>
-                                {index === 0 && <Badge variant="secondary">Popular</Badge>}
-                                {isActive && <Badge className="bg-primary text-primary-foreground">Applied</Badge>}
+                                <p className="text-base font-semibold text-foreground">
+                                  {preset.title}
+                                </p>
+                                {index === 0 && (
+                                  <Badge variant="secondary">Popular</Badge>
+                                )}
+                                {isActive && (
+                                  <Badge className="bg-primary text-primary-foreground">
+                                    Applied
+                                  </Badge>
+                                )}
+                                {isSelected && !isActive && (
+                                  <Badge variant="outline">Selected</Badge>
+                                )}
                               </div>
-                              <p className="mt-2 text-sm leading-6 text-muted-foreground">{preset.description}</p>
+                              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                                {preset.description}
+                              </p>
                             </div>
-                            <div className={`rounded-full px-2.5 py-1 text-xs font-medium ${isActive ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+                            <div
+                              className={`rounded-full px-2.5 py-1 text-xs font-medium ${isSelected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+                            >
                               {formatLabel(preset.category)}
                             </div>
                           </div>
 
-                          <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
+                          <div className="mt-4 grid gap-2 text-xs sm:grid-cols-3">
                             <div className="rounded-xl border bg-muted/20 px-3 py-2">
-                              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Header</p>
-                              <p className="mt-1 font-medium text-foreground">{presetHeader}</p>
+                              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                                Header
+                              </p>
+                              <p className="mt-1 font-medium text-foreground">
+                                {presetHeader}
+                              </p>
                             </div>
                             <div className="rounded-xl border bg-muted/20 px-3 py-2">
-                              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Buttons</p>
-                              <p className="mt-1 font-medium text-foreground">{preset.buttons.length}</p>
+                              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                                Buttons
+                              </p>
+                              <p className="mt-1 font-medium text-foreground">
+                                {preset.buttons.length}
+                              </p>
                             </div>
                             <div className="rounded-xl border bg-muted/20 px-3 py-2">
-                              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Footer</p>
-                              <p className="mt-1 font-medium text-foreground">{preset.footerText ? "Included" : "None"}</p>
+                              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                                Footer
+                              </p>
+                              <p className="mt-1 font-medium text-foreground">
+                                {preset.footerText ? "Included" : "None"}
+                              </p>
                             </div>
                           </div>
 
-                          <div className="mt-4 flex items-center justify-between border-t pt-4 text-sm">
-                            <span className="text-muted-foreground">{isActive ? "This preset is currently active" : "Apply this preset"}</span>
-                            <span className={`font-medium ${isActive ? "text-primary" : "text-foreground group-hover:text-primary"}`}>
-                              {isActive ? "Applied" : "Use Preset"}
+                          <div className="mt-4 flex flex-col gap-3 border-t pt-4 text-sm">
+                            <span className="text-muted-foreground">
+                              {isActive
+                                ? "This preset is currently active"
+                                : isSelected
+                                  ? "Template selected. Use the button below to apply it."
+                                  : "Select this card, then use the button below to apply it."}
                             </span>
+                            <Button
+                              type="button"
+                              className="w-full"
+                              variant={isSelected || isActive ? "default" : "outline"}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                applyPreset(preset);
+                              }}
+                            >
+                              {isActive ? "Use This Template Again" : "Select Template"}
+                            </Button>
                           </div>
-                        </button>
+                        </div>
                       );
                     })}
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
+                  <div className="border-t pt-4">
+                    <div className="flex justify-end">
+                      <Button
+                        variant="outline"
+                        onClick={() => setIsQuickStartModalOpen(false)}
+                      >
+                        Close
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </Modal> */}
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
@@ -1724,8 +1924,14 @@ export default function TemplateCreate() {
                   <Save className="mr-2 h-4 w-4" />
                   Save Draft
                 </Button>
-                <Button onClick={handleCreate} disabled={isCreating}>
-                  {isCreating ? "Creating..." : "Create Template"}
+                <Button onClick={handleCreate}>
+                  {isCreating
+                    ? isEditMode
+                      ? "Updating..."
+                      : "Creating..."
+                    : isEditMode
+                      ? "Update Template"
+                      : "Create Template"}
                 </Button>
               </div>
             </div>
@@ -1735,6 +1941,3 @@ export default function TemplateCreate() {
     </div>
   );
 }
-
-
-

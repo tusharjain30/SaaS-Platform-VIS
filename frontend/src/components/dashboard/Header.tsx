@@ -27,10 +27,10 @@ export function Header() {
         </div>
 
         {/* New Broadcast Button */}
-        <Button className="gradient-whatsapp text-primary-foreground gap-2 shadow-md hover:shadow-lg transition-shadow">
+        {/* <Button className="gradient-whatsapp text-primary-foreground gap-2 shadow-md hover:shadow-lg transition-shadow">
           <Plus className="h-4 w-4" />
           <span className="hidden sm:inline">New Broadcast</span>
-        </Button>
+        </Button> */}
 
         {/* Notifications */}
         <Button variant="ghost" size="icon" className="relative">
